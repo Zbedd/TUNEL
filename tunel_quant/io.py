@@ -5,16 +5,6 @@ import cv2
 import tifffile as tiff
 import nd2reader
 
-#Accepts the path to a folder that holdes several tif images, and returns the set of tif images in a list
-def pullImages(folder):
-  images = []
-  for file in (os.listdir(folder)):
-    image = tiff.imread(os.path.join(folder, file))
-    # if len(image.shape) == 3 and image.shape[2] == 3: #assuming that 3-channel images are likely BGR
-    #     image = cv2.cvtColor(image, cv2.COLOR_B2BGR)
-    images.append(image)
-  return images
-
 def pull_nd2_images(folder):
     """
     Pull ND2 images from a folder and return a list where each element

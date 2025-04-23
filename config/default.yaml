@@ -1,0 +1,20 @@
+input_folder : 'G:\My Drive\KatzLab\TUNEL staining\Caitlin's Files\Raw nd2 Images'
+output_folder : 'C:\Users\zbedd\OneDrive\GT\Opportunities\Katz Lab\Analysis for Yu\TUNEL'
+
+l_map : {
+    'cortex': ['CORTEX', 'cortex', 'corex'],
+    'CA1': ['CA1', 'CA!'],
+    # 'CA2': ['CA2'],
+    'CA3': ['CA3']
+    # 'cpu': ['CPU', 'cpu'],
+    # 'brainstem': ['brainstem'],
+    # 'DG': ['DG'],
+    # 'Anterior hippocampus': ['Anterior hippo'],
+    # 'hippocampus': ['HIP', 'hip'],
+    # 'Midbrain': ['Midbrain'],
+    # 'Cerebellum': ['Cerebellum'],
+}
+
+seg_method : 'yolo'
+conThresh : 0.8
+kSize : 31
