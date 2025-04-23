@@ -1,0 +1,5 @@
+__pycache__/
+*.py[cod]
+*.nd2
+.vscode/
+.env
