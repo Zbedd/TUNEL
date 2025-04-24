@@ -10,13 +10,13 @@ def main():
     #  ➤ 1) Configure Kaggle API
     # ----------------------------------------
     # Change this to the folder containing your kaggle.json
-    os.environ["KAGGLE_CONFIG_DIR"] = r"C:\Users\zbedd\OneDrive\GT\Opportunities\Katz Lab"
+    os.environ["KAGGLE_CONFIG_DIR"] = r"C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/"
 
     from kaggle.api.kaggle_api_extended import KaggleApi
 
     def download_dsb2018(target="dsb18"):
         target = pathlib.Path(target)
-        target.mkdir(exist_ok=True)
+        target.mkdir(parents = True, exist_ok=True)
         api = KaggleApi()
         api.authenticate()
         # download only the training zip
@@ -31,13 +31,16 @@ def main():
             zf.extractall(target/"train_raw")
         print("✅ Downloaded and unpacked DSB2018 stage1_train.zip into", target/"train_raw")
         
+    # Check if yolo_wrapper/dsb18/train_raw exists, if not, download the dataset
+    if not pathlib.Path("yolo/dsb18/train_raw").exists():
+        download_dsb2018(target="yolo/dsb18")
         
-        
+
+  
     #  ➤ 2) Prepare YOLO dataset
     # ----------------------------------------
-    src = pathlib.Path("dsb18/train_raw")
-    dst = pathlib.Path("nuclei_yolo")
-
+    src = pathlib.Path("yolo/dsb18/train_raw")
+    dst = pathlib.Path("yolo/nuclei_yolo")
     # create folder structure
     for sub in ("images/train", "labels/train", "images/val", "labels/val"):
         (dst/sub).mkdir(parents=True, exist_ok=True)

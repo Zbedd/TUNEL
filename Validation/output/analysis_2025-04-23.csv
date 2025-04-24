@@ -1,0 +1,29 @@
+0,1
+881_PLX_Cre-_CA1_10x.nd2,"     nucleus_id  absolute_brightness  relative_brightness     alive_or_dead
+0             1            10.630197            -0.470460      likely alive
+1             2             8.950276            -2.687845  definitely alive
+2             3             9.404358            -0.970944      likely alive
+3             4             9.880478            -1.119522  definitely alive
+4             5             8.657825            -1.023873      likely alive
+..          ...                  ...                  ...               ...
+157         158             8.955145            -0.150396      likely alive
+158         159             4.950904            -1.051680  definitely alive
+159         160             8.410714            -0.264881      likely alive
+160         161             7.986394            -1.251701  definitely alive
+161         162            12.028356             0.141777       likely dead
+
+[162 rows x 4 columns]"
+883_PLX_Cre+_CA1_10x.nd2,"     nucleus_id  absolute_brightness  relative_brightness    alive_or_dead
+0             1            42.227272             2.870129      likely dead
+1             2            46.494759             1.696018      likely dead
+2             3            51.680107             1.223118      likely dead
+3             4            40.713741            -4.618320     likely alive
+4             5            48.009346             0.040497      likely dead
+..          ...                  ...                  ...              ...
+141         142            51.481480             7.592590  definitely dead
+142         143            36.928123             5.487499  definitely dead
+143         144            42.114067            12.250950  definitely dead
+144         145            27.607407            -1.000000     likely alive
+145         146            29.161644             0.799999      likely dead
+
+[146 rows x 4 columns]"

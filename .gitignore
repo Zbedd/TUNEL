@@ -1,4 +1,5 @@
 __pycache__/
+yolo/ #ignore images and model training
 *.py[cod]
 *.nd2
 .vscode/

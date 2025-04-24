@@ -1,5 +1,4 @@
 #Imports
-import os
 import numpy as np
 import cv2
 import pyclesperanto_prototype as cle
@@ -41,7 +40,7 @@ def segmentation_pipeline_otsu(input_image, *, splitting=True):
 # segmentation using YOLO (first build model through yolo_model_training.py)
 # --------------------------------------------------------------------
 YOLO_MODEL = None
-YOLO_PATH  = "runs/segment/train2/weights/best.pt"  # adjust as needed
+YOLO_PATH  = "C:/Users/zbedd/OneDrive/VScode/TUNEL/runs/segment/train/weights/best.pt"  # adjust as needed
 try:
     YOLO_MODEL = YOLO(YOLO_PATH)
     YOLO_MODEL.fuse()

@@ -1,7 +1,6 @@
 import pandas as pd
-import io
-import labeling
-import processing
+import time
+from . import labeling, local_io, processing
 
 def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
     """
@@ -27,7 +26,11 @@ def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
     all_analysis = []  # List to store analysis results for each image.
 
     # Load all ND2 images from the folder.
-    images = io.pull_nd2_images(path)
+    images = local_io.pull_nd2_images(path)
+
+    image_count = 0
+    timestamp = time.time()
+    print(f"Analyzing {len(images)} images...")
 
     for image in images:
         # Unpack the image components:
@@ -44,6 +47,12 @@ def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
 
         # Append the image name and its analysis result to the aggregate list.
         all_analysis.append([name, analysis])
+        
+        image_count += 1
+        if image_count % 10 == 0:
+            print(f"Processed {image_count} images...")
+            elapsed_time = time.time() - timestamp
+            print(f"Elapsed time: {elapsed_time:.2f} seconds")
 
     return all_analysis
 
@@ -52,7 +61,6 @@ def summarize_analysis(all_analysis, location_map = None):
   Accepts the output of analyze_folder and returns a summary of the analysis in the
   form of a dataframe with columns ['group','location', 'name', 'definitely alive', 'definitely dead', 'likely alive', 'likely dead']
   '''
-
 
 
   group_map = {

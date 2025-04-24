@@ -1,5 +1,7 @@
-input_folder : 'G:\My Drive\KatzLab\TUNEL staining\Caitlin's Files\Raw nd2 Images'
-output_folder : 'C:\Users\zbedd\OneDrive\GT\Opportunities\Katz Lab\Analysis for Yu\TUNEL'
+input_folder : "C:/Users/zbedd/OneDrive/VScode/TUNEL/Validation/nd2"
+output_folder: "C:/Users/zbedd/OneDrive/VScode/TUNEL/Validation/output"
+# input_folder : "G:/My Drive/KatzLab/TUNEL staining/Caitlin's Files/Raw nd2 Images"
+# output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL"
 
 l_map : {
     'cortex': ['CORTEX', 'cortex', 'corex'],
@@ -18,3 +20,4 @@ l_map : {
 seg_method : 'yolo'
 conThresh : 0.8
 kSize : 31
+train_model : False

@@ -287,6 +287,7 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
     max_y = 0
 
     if include_location:
+        print(summary)
         if not flip_group_location:
             # Default mode: x-axis by group, sub-bars for locations.
             groups = summary['group'].unique()
@@ -322,6 +323,7 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
             ax.set_xticks(x)
             ax.set_xticklabels(groups)
             ax.legend(title='Location')
+            ax.margins(y=0.1)
 
             # Significance bars: compare treatment groups within each location.
             if add_significance:
@@ -388,6 +390,7 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
             ax.set_xticks(x)
             ax.set_xticklabels(locations)
             ax.legend(title='Group')
+            ax.margins(y=0.1)
 
             # **New Significance Block:**
             # In flipped mode, for each location compare treatment groups (g1 vs. g2) for that location.
@@ -412,6 +415,7 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
                                         color='black', linewidth=1, zorder=4)
                                 ax.text((x1 + x2) / 2, y + 1.5, stars,
                                         ha='center', va='bottom', fontsize=14, zorder=4)
+                                
                                 sig_level[loc] += 1
 
     else:
@@ -457,7 +461,11 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.5)
     ax.set_ylabel('Alive Cells (%)')
     ax.set_title(title)
-    ax.set_ylim(0, max_y + 15 + (8 * (sig_level if not flip_group_location else max(sig_level.values()) if add_significance else 0)))
+    ax.relim()             # recompute data limits
+    ax.autoscale_view()    # apply them
+    ymin, ymax = ax.get_ylim()
+    ax.set_ylim(0, ymax + 5)
+    
     plt.xticks(rotation=45)
     plt.tight_layout()
-    plt.show()
+    return fig
