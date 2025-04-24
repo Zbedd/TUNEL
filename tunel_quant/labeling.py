@@ -59,7 +59,7 @@ def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.1):
         img8 = np.stack([img8]*3, axis=-1)
 
     # inference
-    res   = YOLO_MODEL(img8, conf=conf_thres, retina_masks=True, verbose=False)[0]
+    res   = YOLO_MODEL(img8, imgsz=768, conf=conf_thres, retina_masks=True, verbose=False)[0]
     masks = res.masks.data  # Tensor (N, H, W)
 
     h, w = input_image.shape

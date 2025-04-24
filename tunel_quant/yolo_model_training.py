@@ -98,19 +98,21 @@ def main():
         )
     print("✅ Wrote", data_yaml)
 
-    #  ➤ 4) Fine-tune YOLO-v8 segmentation
+    #  ➤ 4) Fine-tune YOLO-v8m segmentation
     # ----------------------------------------
     # install ultralytics if needed:
     # pip install ultralytics
     from ultralytics import YOLO
 
-    print("▶️ Starting YOLO-v8n segmentation training…")
-    model = YOLO("yolov8n-seg.pt")  # pretrained COCO-seg checkpoint
+    print("▶️ Starting YOLO-v8m segmentation training…")
+    model = YOLO("yolov8m-seg.pt")  # pretrained COCO-seg checkpoint
     model.train(
         data=str(data_yaml),
         epochs=50,
-        imgsz=512,
+        imgsz=768,
         batch=8,
+        mask_ratio = 2, #increases run-time and accuracy
+        retina_masks = True,
         device=0  # GPU
     )
     print("✅ Training complete. Checkpoint at runs/segment/train*/weights/best.pt")
