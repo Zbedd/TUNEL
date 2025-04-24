@@ -1,5 +1,5 @@
-input_folder : "C:/Users/zbedd/OneDrive/VScode/TUNEL/Validation/nd2"
-output_folder: "C:/Users/zbedd/OneDrive/VScode/TUNEL/Validation/output"
+input_folder : "C:/VScode/TUNEL/Validation/nd2"
+output_folder: "C:/VScode/TUNEL/Validation/output"
 # input_folder : "G:/My Drive/KatzLab/TUNEL staining/Caitlin's Files/Raw nd2 Images"
 # output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL"
 
