@@ -5,7 +5,7 @@ import os
 import pandas as pd
 from datetime import datetime
 
-from tunel_quant import summarize, yolo_model_training, plotting
+from tunel_quant import summarize, plotting
 
 def main(cfg):
     import warnings
@@ -20,11 +20,6 @@ def main(cfg):
         raise ValueError(f"Unknown seg_method '{cfg['seg_method']}', must be one of {valid_methods!r}")
     
     '''PIPELINE FUNCTIONS'''
-    # Optionally, train the model
-    if cfg['seg_method'] == 'yolo' and cfg['train_model']:
-        print("Training YOLO model...")
-        yolo_model_training.main()
-        print("YOLO model training complete.")
         
     date_str = datetime.now().strftime('%Y-%m-%d')
     analysis = summarize.analyze_folder(cfg['input_folder'], cfg['seg_method'], cfg['conThresh'], cfg['kSize'])
