@@ -48,7 +48,7 @@ except Exception as e:
     print(f"⚠️  Warning: could not load YOLO model at '{YOLO_PATH}': {e}\n"
           "         YOLO-based segmentation will be unavailable.")
 
-def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.1):
+def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.01):
     """YOLO-v8 retina_masks segmentation → union mask + instance labels."""
     if YOLO_MODEL is None:
         raise RuntimeError("YOLO model not loaded; cannot run YOLO segmentation.")
@@ -207,3 +207,68 @@ def label_nuclei(
         return final_labels, stats, final_binary
     return final_labels, stats
 
+def label_nuclei_basic(dapi_image, *, 
+                       method = 'otsu',     
+                       splitting=True,
+                       remove_small_outliers=False,
+                       remove_large_outliers=False,
+                       return_binary=False,
+                       min_label_area=250,
+                       verbose=False):
+    """
+    dapi_image : 2D ndarray
+
+    method : str
+      "otsu" to use classic Otsu thresholding
+      "yolo" to use the YOLO-v8 retina_masks segmentation
+
+    The rest of the parameters control the CLAHE contrast-loop,
+    optional splitting, outlier filtering, and min-area filtering.
+
+    Returns:
+      final_labels : labeled ndarray
+      label_stats  : dict from cle.statistics_of_labelled_pixels
+      (optional final_binary mask)
+    """
+    # pick the pipeline
+    if method == "otsu":
+        seg_fn = segmentation_pipeline_otsu
+        seg_kwargs = {"splitting": splitting}
+    elif method == "yolo":
+        seg_fn = segmentation_pipeline_yolo
+        seg_kwargs = {"splitting": splitting, "conf_thres": 0.1}
+    else:
+        raise ValueError(f"Unknown method {method!r}; choose 'otsu' or 'yolo'")
+
+    cle.select_device("cupy")
+    img = np.copy(dapi_image)
+
+    # Generate binary mask
+    labels, binary = seg_fn(img, **seg_kwargs)
+    cc, _        = ndi.label(binary)
+    sizes        = np.bincount(cc.ravel())[1:]
+    max_area = sizes.max() if sizes.size else 0
+    if verbose:
+        print(f"Largest label = {max_area}")
+
+    # outlier + min-area filters
+    arr = labels.get() if hasattr(labels, "get") else labels
+    areas = np.bincount(arr.ravel())[1:]
+    if areas.size:
+        Q1, Q3 = np.percentile(areas, [25,75]); IQR = Q3 - Q1
+        low, high = Q1 - 0.5*IQR, Q3 + 0.5*IQR
+        filt = arr.copy()
+        for lid, a in enumerate(areas, 1):
+            if (remove_small_outliers and a < low) or \
+               (remove_large_outliers and a > high) or \
+               (a < min_label_area):
+                filt[arr == lid] = 0
+        labels = cle.relabel_sequential(
+            cp.asarray(filt) if hasattr(labels, "get") else filt
+        )
+
+    stats = cle.statistics_of_labelled_pixels(dapi_image, labels)
+
+    if return_binary:
+        return labels, stats, binary
+    return binary, stats

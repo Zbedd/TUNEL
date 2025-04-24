@@ -6,7 +6,6 @@ Shows a random subset of ND2 images in napari with:
     • segmentation labels
     • binary mask
 
-Works on all napari versions ≥ 0.4 (no add_group needed).
 """
 
 import sys
@@ -34,7 +33,7 @@ module_dir = r"C:/VScode/TUNEL/"
 if module_dir not in sys.path:
     sys.path.insert(0, module_dir)
 
-from tunel_quant import labeling, local_io
+from tunel_quant import labeling, local_io, preprocessing
 
 
 
@@ -46,8 +45,9 @@ def load_and_segment(folder, n_images=None, seg_method='yolo'):
 
     out = []
     for name, dapi, fitc in images:
-        labels, stats, binary = labeling.label_nuclei(
-            dapi,
+        prepped_dapi = preprocessing.preprocess_dapi(dapi)
+        labels, stats, binary = labeling.label_nuclei_basic(
+            prepped_dapi,
             remove_large_outliers=True,
             remove_small_outliers=True,
             method=seg_method,
