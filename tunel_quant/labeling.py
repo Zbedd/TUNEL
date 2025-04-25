@@ -47,10 +47,11 @@ YOLO_MODEL = None
 path_base = Path(r"C:/VScode/TUNEL/runs/segment")   # root that holds train, train2, …
 
 # find every best.pt, keep the one whose parent run folder is newest
-best_ckpt = max(
+YOLO_PATH = max(
     path_base.glob("train*/weights/best.pt"),
     key=lambda p: p.stat().st_mtime,             # most-recent modification time
 )
+
 try:
     YOLO_MODEL = YOLO(YOLO_PATH)
     YOLO_MODEL.fuse()

@@ -51,12 +51,13 @@ def load_and_segment(folder, n_images=None, seg_method='yolo'):
     out = []
     for name, dapi, fitc in images:
         prepped_dapi = preprocessing.preprocess_dapi(dapi)
-        labels, stats, binary = labeling.label_nuclei_basic(
+        labels, stats, binary = labeling.label_nuclei(
             prepped_dapi,
             remove_large_outliers=False,
             remove_small_outliers=False,
             method=seg_method,
-            return_binary=True
+            return_binary=True,
+            iterate = False
         )
         out.append((name, dapi, labels, binary))
     return out

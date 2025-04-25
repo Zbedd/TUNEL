@@ -1,10 +1,16 @@
 import yaml
 import argparse
+import sys
 
 import os
 import pandas as pd
 from datetime import datetime
 
+# Make package importable
+module_dir = r"C:/VScode/TUNEL/"
+if module_dir not in sys.path:
+    sys.path.insert(0, module_dir)
+    
 from tunel_quant import summarize, plotting
 
 def main(cfg):
