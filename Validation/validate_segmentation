@@ -5,6 +5,11 @@ Shows a random subset of ND2 images in napari with:
     • raw DAPI image
     • segmentation labels
     • binary mask
+    
+    
+NEXT STEPS
+    • Integrate otsu and YOLO segmentation methods, potentially generating otsu through iteration. New function: label_nuclei_integrated
+    • First, should integrate label_nuclei and label_nuclei_basic into a single, modular function.
 
 """
 
