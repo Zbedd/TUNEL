@@ -2,10 +2,10 @@
 import numpy as np
 import cv2
 import pyclesperanto_prototype as cle
-import torch
 from ultralytics import YOLO
 import scipy.ndimage as ndi
 import cupy as cp
+from pathlib import Path
 
 
 from skimage.filters import threshold_otsu
@@ -44,7 +44,13 @@ def segmentation_pipeline_otsu(input_image, *, splitting=True):
 # segmentation using YOLO (first build model through yolo_model_training.py)
 # --------------------------------------------------------------------
 YOLO_MODEL = None
-YOLO_PATH  = "C:/VScode/TUNEL/runs/segment/train/weights/best.pt"  # adjust as needed
+path_base = Path(r"C:/VScode/TUNEL/runs/segment")   # root that holds train, train2, …
+
+# find every best.pt, keep the one whose parent run folder is newest
+best_ckpt = max(
+    path_base.glob("train*/weights/best.pt"),
+    key=lambda p: p.stat().st_mtime,             # most-recent modification time
+)
 try:
     YOLO_MODEL = YOLO(YOLO_PATH)
     YOLO_MODEL.fuse()
@@ -113,7 +119,7 @@ def label_nuclei(
     if method == "otsu":
         seg_fn, seg_kw = segmentation_pipeline_otsu, {}
     elif method == "yolo":
-        seg_fn, seg_kw = segmentation_pipeline_yolo, {"conf_thres": 0.1}
+        seg_fn, seg_kw = segmentation_pipeline_yolo, {"conf_thres": 0.01}
     else:
         raise ValueError("method must be 'otsu' or 'yolo'")
 
