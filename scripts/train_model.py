@@ -1,37 +1,28 @@
-import sys
+"""CLI entry‑point to train the YOLO nuclei‑segmentation model."""
 import multiprocessing
+import time
+import sys
 import pathlib
 
-# ─── determine project root (two levels up from scripts/) ──────────
-HERE = pathlib.Path(__file__).resolve()           # .../TUNEL/scripts/train_model.py
-ROOT = HERE.parent.parent                         # .../TUNEL
+ROOT = pathlib.Path(__file__).resolve().parent.parent  # .../TUNEL
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+    
+from tunel_quant import yolo_model_training as tmt  # adjust the import path if moved
 
-# now build all data‐paths off ROOT
-DSB_RAW = ROOT / "yolo" / "dsb18" / "train_raw"
-YOLO_DST = ROOT / "yolo" / "nuclei_yolo"
 
 def main():
-    # Make package importable
-    module_dir = r"C:/VScode/TUNEL/"
-    if module_dir not in sys.path:
-        sys.path.insert(0, module_dir)
+    start = time.time()
 
-    import time
-    from tunel_quant import yolo_model_training
+    # 1️⃣ build the dataset (no‑op if already built)
+    tmt.build_dataset()
 
-    # Train the model
-    start_time = time.time()
+    # 2️⃣ train the model
+    tmt.train_yolov8()
 
-    print("Training YOLO model...")
-    yolo_model_training.main()
-    print("YOLO model training complete.")
+    print(f"Total elapsed: {time.time() - start:.1f} s")
 
-    elapsed = time.time() - start_time
-    print(f"Total training time: {elapsed:.2f} seconds")
-pass
 
 if __name__ == "__main__":
-    # this allows the spawn‐based loader to import safely
-    multiprocessing.freeze_support()
+    multiprocessing.freeze_support()  # for Windows spawn
     main()
-    

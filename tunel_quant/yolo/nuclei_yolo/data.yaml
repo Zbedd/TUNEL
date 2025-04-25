@@ -1,0 +1,5 @@
+path: C:\VScode\TUNEL\tunel_quant\yolo\nuclei_yolo
+train: images/train
+val:   images/val
+nc: 1
+names: ['nucleus']
