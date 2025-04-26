@@ -21,14 +21,16 @@ def main(cfg):
     category=UserWarning,
     module="pyclesperanto_prototype._tier0._cuda_backend"
     )
+    
     valid_methods = {"otsu", "yolo"}
     if cfg["seg_method"] not in valid_methods:
         raise ValueError(f"Unknown seg_method '{cfg['seg_method']}', must be one of {valid_methods!r}")
     
+    
     '''PIPELINE FUNCTIONS'''
         
     date_str = datetime.now().strftime('%Y-%m-%d')
-    analysis = summarize.analyze_folder(cfg['input_folder'], cfg['seg_method'], cfg['conThresh'], cfg['kSize'])
+    analysis = summarize.analyze_folder(cfg['input_folder'], cfg['seg_method'], cfg['conThresh'], cfg['kSize'], cfg['magnification'])
     # Save the analysis data to a CSV file
     
     summary = summarize.summarize_analysis(analysis, cfg['l_map'])

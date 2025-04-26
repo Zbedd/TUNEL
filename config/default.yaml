@@ -20,3 +20,4 @@ l_map : {
 seg_method : 'yolo'
 conThresh : 0.8
 kSize : 31
+magnification : 20 # magnification filter, None for all

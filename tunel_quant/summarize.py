@@ -2,7 +2,7 @@ import pandas as pd
 import time
 from . import labeling, local_io, processing
 
-def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
+def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31, magnification = None):
     """
     Analyzes all ND2 images in a given folder.
 
@@ -17,6 +17,7 @@ def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
       path (str): The path to the folder containing ND2 image files.
       method (str): The method for nuclear labeling. Can be 'otsu' or 'yolo'.
       conThresh (float): Weighting for certainty of alive or dead. Must be >= 1.
+      magnification (int): The magnification of the images. Used for filtering images. None for all.
 
     Returns:
       list: A list of entries [name, analysis], where:
@@ -30,7 +31,14 @@ def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31):
 
     image_count = 0
     timestamp = time.time()
-    print(f"Analyzing {len(images)} images...")
+    
+    if magnification:
+        print(f"{len(images)} images found in {path}.")
+        print(f"Filtering images by magnification: {magnification}x")
+        images = [img for img in images if f"{magnification}x".lower() in img[0].lower()]
+        print(f"{len(images)} images found with {magnification}x magnification.")
+    else:
+        print(f"Analyzing {len(images)} images...")
 
     for image in images:
         # Unpack the image components:

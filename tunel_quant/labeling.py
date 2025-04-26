@@ -24,6 +24,8 @@ def segmentation_pipeline_otsu(input_image, *, splitting=True):
     """
     Classic DAPI→Otsu threshold → holes/closing → optional watershed split →
     GPU Voronoi-Otsu labelling.
+    
+    Will ignore splitting, as splitting is handled by yolo directly
     """
     blur   = cv2.GaussianBlur(input_image, (5,5), 2)
     binary = blur > threshold_otsu(blur)
@@ -60,7 +62,7 @@ except Exception as e:
     print(f"⚠️  Warning: could not load YOLO model at '{YOLO_PATH}': {e}\n"
           "         YOLO-based segmentation will be unavailable.")
 
-def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.01):
+def segmentation_pipeline_yolo(input_image, *, conf_thres=0.01):
     """YOLO-v8 retina_masks segmentation → union mask + instance labels."""
     if YOLO_MODEL is None:
         raise RuntimeError("YOLO model not loaded; cannot run YOLO segmentation.")
@@ -71,7 +73,7 @@ def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.01):
         img8 = np.stack([img8]*3, axis=-1)
 
     # inference
-    res   = YOLO_MODEL(img8, imgsz=768, conf=conf_thres, retina_masks=True, verbose=False)[0]
+    res   = YOLO_MODEL(img8, imgsz=768, mask_ratio = 1, conf=conf_thres, retina_masks=True, verbose=False)[0]
     masks = res.masks.data  # Tensor (N, H, W)
 
     h, w = input_image.shape
@@ -85,9 +87,6 @@ def segmentation_pipeline_yolo(input_image, *, splitting=True, conf_thres=0.01):
         for i in range(mb.shape[0]):
             labels[ mb[i].cpu().numpy() ] = i+1
         binary = labels>0
-
-    if splitting:
-        print("⚠️  Warning: YOLO segmentation does not utilize splitting.")
 
     return labels, binary
 
@@ -119,7 +118,7 @@ def label_nuclei(
 
     # ---------- choose backend ------------------------------------------------
     if method == "otsu":
-        seg_fn, seg_kw = segmentation_pipeline_otsu, {}
+        seg_fn, seg_kw = segmentation_pipeline_otsu, {"splitting": splitting}
     elif method == "yolo":
         seg_fn, seg_kw = segmentation_pipeline_yolo, {"conf_thres": 0.01}
     else:
@@ -132,14 +131,18 @@ def label_nuclei(
     #  BASIC PATH  (iterate == False)
     # ========================================================================== 
     if not iterate:
-        labels, binary = seg_fn(img, splitting=splitting, **seg_kw)
+        labels, binary = seg_fn(img, **seg_kw)
 
     # ========================================================================== 
     #  ITERATIVE PATH  (iterate == True)
     # ========================================================================== 
     else:
         # --- STEP-1 baseline (no splitting) -----------------------------------
-        base_lbl, base_bin = seg_fn(img, splitting=False, **seg_kw)
+        # For baseline, override splitting to False even if method=='otsu'
+        base_kw = seg_kw.copy()
+        if method == "otsu":
+            base_kw["splitting"] = False
+        base_lbl, base_bin = seg_fn(img, **base_kw)
         baseline_max = np.bincount(base_bin.ravel())[1:].max(initial=0)
         if verbose:
             print(f"[baseline] largest cc = {baseline_max}")
@@ -150,7 +153,7 @@ def label_nuclei(
 
         for i in range(max_clip_iterations):
             clahe_img = cv2.createCLAHE(clip, (8, 8)).apply(img.astype("uint8"))
-            _, bin_tmp = seg_fn(clahe_img, splitting=False, **seg_kw)
+            _, bin_tmp = seg_fn(clahe_img, **base_kw)
             cur_max    = np.bincount(bin_tmp.ravel())[1:].max(initial=0)
 
             if verbose:
@@ -167,7 +170,7 @@ def label_nuclei(
             img = best[1] if best[0] < baseline_max else img
 
         # --- STEP-2 final segmentation (with splitting flag) ------------------
-        labels, binary = seg_fn(img, splitting=splitting, **seg_kw)
+        labels, binary = seg_fn(img, **seg_kw)
 
     # ========================================================================== 
     #  COMMON POST-PROCESSING  (outlier + min-area filter) 
