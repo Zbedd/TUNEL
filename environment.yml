@@ -1,0 +1,38 @@
+# Setup with:
+# conda env create -f environment.yml
+# conda activate tunel_cpu
+
+#Update with: conda env update -n tunel_cpu --file environment.yml --prune
+
+name: tunel_cpu
+channels:
+  - conda-forge
+  - pytorch
+
+dependencies:
+  - python=3.11
+  - numpy>=1.24,<2.3
+  - matplotlib
+  - napari=0.5.6
+  - opencv
+  - pandas
+  - numba
+  - pims
+  - numcodecs
+  - pyclesperanto-prototype
+  - cupy
+  - pytorch
+  - torchvision
+  - torchaudio
+  - cpuonly
+  - pip
+  - nd2reader
+
+  # Any pip-only packages go here:
+  - pip:
+    - ultralytics==8.3.116
+    - pyyaml
+    - kaggle
+    - siphash24
+
+

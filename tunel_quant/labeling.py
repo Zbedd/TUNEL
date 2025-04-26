@@ -55,6 +55,7 @@ YOLO_PATH = max(
 try:
     YOLO_MODEL = YOLO(YOLO_PATH)
     YOLO_MODEL.fuse()
+    print(f"✅ YOLO model loaded from '{YOLO_PATH}'")
 except Exception as e:
     print(f"⚠️  Warning: could not load YOLO model at '{YOLO_PATH}': {e}\n"
           "         YOLO-based segmentation will be unavailable.")
