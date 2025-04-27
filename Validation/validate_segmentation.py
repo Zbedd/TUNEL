@@ -20,6 +20,7 @@ from matplotlib.widgets import Slider, CheckButtons
 # CONFIG
 sample_size   = 3
 zoom          = '10'         # magnification filter, None for all
+image_type    = 'ca1'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
 method        = 'yolo'       # 'yolo' | 'otsu'
 input_folder  = r"G:/My Drive/KatzLab/TUNEL staining/Caitlin's Files/Raw nd2 Images"
 kernel_size   = 51
@@ -49,6 +50,8 @@ def load_and_process(folder, n_images):
     imgs = local_io.pull_nd2_images(folder)
     if zoom:
         imgs = [img for img in imgs if f"{zoom}x".lower() in img[0].lower()]
+    if image_type:
+        imgs = [img for img in imgs if image_type.lower() in img[0].lower()]
     if n_images and n_images < len(imgs):
         imgs = random.sample(imgs, n_images)
 
@@ -57,7 +60,8 @@ def load_and_process(folder, n_images):
         prepd = preprocessing.preprocess_dapi(dapi)
         labels, _, binary = labeling.label_nuclei(
             prepd, method=method, return_binary=True, iterate=False,
-            remove_large_outliers=False, remove_small_outliers=False
+            remove_large_outliers=False, remove_small_outliers=False,
+            apply_masking=True, name=name
         )
 
         df = processing.analyze_nuclei(
@@ -102,7 +106,7 @@ def main():
     bin1      = ax1.imshow(proc[idx]['binary'], cmap='gray', alpha=0.3)
     ax1.set_title(f"{proc[idx]['name']} | DAPI"); ax1.axis('off')
 
-    # right (FITC)  ⊕
+    # right (FITC)  
     raw2      = ax2.imshow(proc[idx]['fitc'], cmap='gray')
     classification2  = ax2.imshow(proc[idx]['classification'], interpolation='none')
     ax2.set_title(f"{proc[idx]['name']} | FITC"); ax2.axis('off')

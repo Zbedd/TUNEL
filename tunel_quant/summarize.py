@@ -48,7 +48,7 @@ def analyze_folder(path, method = 'otsu', conThresh = 0.8, kSize = 31, magnifica
         fitc = image[2]
 
         # Perform nuclear labeling on the DAPI image, with both large and small outliers removed.
-        nucLabels, nucLabelStats = labeling.label_nuclei(dapi, remove_large_outliers=True, remove_small_outliers=True, method=method)
+        nucLabels, nucLabelStats = labeling.label_nuclei(dapi, remove_large_outliers=True, remove_small_outliers=True, method=method, apply_masking=True, name = name)
 
         # Analyze nuclei using the FITC image to compute brightness and viability.
         analysis = processing.analyze_nuclei(nucLabels, fitc, kernel_size = kSize, confidenceThreshold=conThresh)

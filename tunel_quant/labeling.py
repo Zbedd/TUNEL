@@ -108,7 +108,10 @@ def label_nuclei(
     max_baseline_size: int = 80_000,
     return_binary: bool = False,
     verbose: bool = False,
-):
+    apply_masking: bool = False,
+    mask_folder: Path = Path(r"G:\My Drive\KatzLab\TUNEL staining\Caitlin's Files\nd2 masks"),     # directory containing mask TIFFs
+    name: str = None            # original image file path (e.g. 'image.nd2')
+    ):
     """
     One function, two behaviours:
     ----------------------------------
@@ -191,6 +194,39 @@ def label_nuclei(
         arr[~keep] = 0
         labels = cle.relabel_sequential(cp.asarray(arr) if hasattr(labels, "get") else arr)
 
+    # --------------------------------------------------------------------------
+    # Mask-based filtering
+    # --------------------------------------------------------------------------
+    if apply_masking:
+        if name is None:
+            raise ValueError("mask_name must be provided when apply_masking=True")
+        # derive stem (remove extension if present)
+        stem = Path(name).stem
+        mask_file = mask_folder / f"{stem}_mask.tif"
+        # attempt to load mask; if fail, skip filtering
+        try:
+            mask_img = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
+        except Exception:
+            mask_img = None
+        if mask_img is None:
+            if verbose:
+                print(f"⚠️  Warning: mask not found or unreadable at {mask_file}; skipping apply_masking")
+        else:
+            mask_img = np.squeeze(mask_img)
+            roi = mask_img > 0
+            arr = labels.get() if hasattr(labels, "get") else np.array(labels)
+            keep = np.ones_like(arr, bool)
+            for lid in np.unique(arr):
+                if lid == 0:
+                    continue
+                nucleus = (arr == lid)
+                total = nucleus.sum()
+                inside = np.logical_and(nucleus, roi).sum()
+                if (total - inside) / total > 0.10:
+                    keep[nucleus] = False
+            arr[~keep] = 0
+            labels = cle.relabel_sequential(cp.asarray(arr) if hasattr(labels, "get") else arr)
+                                    
     stats = cle.statistics_of_labelled_pixels(dapi_image, labels)
 
     if return_binary:
