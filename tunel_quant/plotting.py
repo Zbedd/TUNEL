@@ -10,6 +10,7 @@ import nd2reader
 
 import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
+from matplotlib.patches import Patch
 
 #Plots a uint8 image. If colorbar is true, a colorbar is included.
 def plot(image, title=None, xlabel=None, ylabel=None, interpolation='nearest', colorbar=False, figsize=(8, 6)):
@@ -244,17 +245,17 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
     """
     Plots a summary barplot of alive cell percentage.
 
-    By default, the x-axis shows 'group' (with sub-bars for each 'location' when include_location is True).
-    If flip_group_location is True (and include_location is True), the x-axis shows 'location'
-    with sub-bars for each group. In either mode, error bars represent the 95% CI for the mean.
+    By default, the x‑axis shows 'group' (with sub‑bars for each 'location' when
+    include_location is True).  If flip_group_location is True (and include_location
+    is True), the x‑axis shows 'location' with sub‑bars for each group.
 
-    Optional features:
-      - Include both 'definitely' and 'likely' cell counts (or only 'definitely').
-      - Plot individual data points as dots.
-      - Display sample sizes (n) above each bar.
-      - Add significance bars (with p-value stars from t-tests) comparing means across treatment groups
-        for the same location.
-      - Exclude rows with 'other' in group or location if include_other is False.
+    Optional features
+    -----------------
+      • include_likely      – include “likely alive/dead” counts in percentages
+      • plot_dots           – scatter raw sample points on each bar
+      • plot_sample_size    – print “n = …” above each bar
+      • add_significance    – Welch‑t tests + significance stars
+      • include_other       – drop rows whose group/location == 'other'
     """
 
     if flip_group_location and not include_location:
@@ -262,210 +263,210 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
 
     df = df.copy()
 
-    # Optionally filter out rows with 'other'
+    # ── 0. pre‑filter 'other' rows ─────────────────────────────────────────────
     if not include_other:
         df = df[(df['location'] != 'other') & (df['group'] != 'other')]
 
-    # Define which columns to use for calculating alive percent.
+    # ── 1. compute alive % at the row level ───────────────────────────────────
     if include_likely:
         alive_cols = ['definitely alive', 'likely alive']
-        total_cols = ['definitely alive', 'likely alive', 'definitely dead', 'likely dead']
+        total_cols = alive_cols + ['definitely dead', 'likely dead']
     else:
         alive_cols = ['definitely alive']
-        total_cols = ['definitely alive', 'definitely dead']
+        total_cols = alive_cols + ['definitely dead']
 
     df['alive_percent'] = df[alive_cols].sum(axis=1) / df[total_cols].sum(axis=1) * 100
 
-    # Group the data: by ['group', 'location'] if include_location is True; otherwise by group only.
+    # group either by (group, location) or just group
     group_cols = ['group', 'location'] if include_location else ['group']
-    summary = df.groupby(group_cols)['alive_percent'].agg(['mean', 'std', 'count']).reset_index()
-    summary['sem'] = summary['std'] / np.sqrt(summary['count'])
+    summary = (df.groupby(group_cols)['alive_percent']
+                 .agg(['mean', 'std', 'count'])
+                 .reset_index())
+    summary['sem']  = summary['std'] / np.sqrt(summary['count'])
     summary['ci95'] = summary['sem'] * 1.96
 
-    fig, ax = plt.subplots(figsize=(12, 6))
-    bar_centers = {}
-    max_y = 0
+    # ── 2. plotting scaffold ──────────────────────────────────────────────────
+    fig, ax   = plt.subplots(figsize=(12, 6))
+    max_y     = 0           # track max so we can place sig bars
+    bar_centers = {}        # map (group,loc) → x position (or reverse if flipped)
 
-    if include_location:
-        print(summary)
-        if not flip_group_location:
-            # Default mode: x-axis by group, sub-bars for locations.
-            groups = summary['group'].unique()
-            locations = summary['location'].unique()
-            x = np.arange(len(groups))
-            bar_width = 0.8 / len(locations)
-            color_map = plt.cm.get_cmap('Set2', len(locations))
+    # ── 3a. group + location both shown (default orientation) ─────────────────
+    if include_location and not flip_group_location:
+        groups     = summary['group'].unique()
+        locations  = summary['location'].unique()
+        x          = np.arange(len(groups))
+        bar_width  = 0.8 / len(locations)
+        color_map  = plt.cm.get_cmap('Set2', len(locations))
 
-            for i, loc in enumerate(locations):
-                for j, group in enumerate(groups):
-                    x_pos = x[j] - 0.4 + i * bar_width
-                    bar_centers[(group, loc)] = x_pos
-                    row = summary[(summary['group'] == group) & (summary['location'] == loc)]
+        for i, loc in enumerate(locations):
+            for j, grp in enumerate(groups):
+                xpos = x[j] - 0.4 + i * bar_width
+                bar_centers[(grp, loc)] = xpos
+                row = summary[(summary['group'] == grp) &
+                              (summary['location'] == loc)]
+                if row.empty:
+                    continue
 
-                    if not row.empty:
-                        mean = row['mean'].values[0]
-                        ci = row['ci95'].values[0]
-                        count = row['count'].values[0]
+                mean, ci, n = row[['mean', 'ci95', 'count']].values[0]
+                ax.bar(xpos, mean, width=bar_width,
+                       color=color_map(i), alpha=0.85, zorder=2)
+                ax.errorbar(xpos, mean, yerr=ci, fmt='none',
+                            capsize=4, color='black', zorder=3)
 
-                        ax.bar(x_pos, mean, yerr=ci, capsize=4, width=bar_width,
-                               color=color_map(i), alpha=0.85, label=loc if j == 0 else "")
+                dots = df[(df['group'] == grp) &
+                          (df['location'] == loc)]['alive_percent']
+                top  = max(mean + ci, dots.max() if not dots.empty else 0)
+                max_y = max(max_y, top)
 
-                        dots = df[(df['group'] == group) & (df['location'] == loc)]['alive_percent']
-                        top = max(mean + ci, dots.max() if not dots.empty else 0)
-                        max_y = max(max_y, top)
+                if plot_sample_size:
+                    ax.text(xpos, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
+                if plot_dots:
+                    ax.scatter(np.full_like(dots, xpos), dots,
+                               color='black', s=15, alpha=0.6, zorder=4)
 
-                        if plot_sample_size:
-                            ax.text(x_pos, top + 2, f'n = {count}', ha='center', va='bottom', fontsize=9)
-                        if plot_dots:
-                            ax.scatter(np.full_like(dots, x_pos), dots,
-                                       color='black', s=15, alpha=0.6, zorder=3)
+        # explicit legend  (all locations that actually appeared)
+        handles = [Patch(facecolor=color_map(i), label=loc)
+                   for i, loc in enumerate(locations)]
+        ax.legend(handles=handles, title='Location')
 
-            ax.set_xticks(x)
-            ax.set_xticklabels(groups)
-            ax.legend(title='Location')
-            ax.margins(y=0.1)
+        # significance between groups within each location
+        if add_significance:
+            line_spacing = 8
+            sig_level    = 0
+            for loc in locations:
+                for g1, g2 in itertools.combinations(groups, 2):
+                    s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
+                    s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
+                    if len(s1) > 1 and len(s2) > 1:
+                        _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
+                        if p < 0.05:
+                            x1, x2 = bar_centers[(g1, loc)], bar_centers[(g2, loc)]
+                            y      = max_y + (sig_level + 1) * line_spacing
+                            stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
+                            ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
+                                    color='black', linewidth=1, zorder=5)
+                            ax.text((x1 + x2)/2, y + 1.5, stars,
+                                    ha='center', va='bottom', fontsize=14, zorder=5)
+                            sig_level += 1
 
-            # Significance bars: compare treatment groups within each location.
-            if add_significance:
-                line_spacing = 8
-                sig_level = 0
-                for loc in locations:
-                    for g1, g2 in itertools.combinations(groups, 2):
-                        s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
-                        s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
-                        if len(s1) > 1 and len(s2) > 1:
-                            stat, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
-                            if p < 0.05:
-                                x1 = bar_centers.get((g1, loc), np.nan)
-                                x2 = bar_centers.get((g2, loc), np.nan)
-                                if np.isnan(x1) or np.isnan(x2):
-                                    continue
-                                y = max_y + (sig_level + 1) * line_spacing
-                                stars = '***' if p < 0.001 else '**' if p < 0.01 else '*'
-                                ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                        color='black', linewidth=1, zorder=4)
-                                ax.text((x1 + x2) / 2, y + 1.5, stars,
-                                        ha='center', va='bottom', fontsize=14, zorder=4)
-                                sig_level += 1
+        ax.set_xticks(x)
+        ax.set_xticklabels(groups)
 
-        else:
-            # Flip mode: x-axis by location, sub-bars for groups.
-            # (Even in flip mode, we want to compare treatment groups within the same location.)
-            locations = summary['location'].unique()
-            groups = summary['group'].unique()
-            x = np.arange(len(locations))
-            bar_width = 0.8 / len(groups)
-            color_map = plt.cm.get_cmap('Set2', len(groups))
+    # ── 3b. flipped orientation (location on x‑axis, colours = group) ─────────
+    elif include_location and flip_group_location:
+        locations  = summary['location'].unique()
+        groups     = summary['group'].unique()
+        x          = np.arange(len(locations))
+        bar_width  = 0.8 / len(groups)
+        color_map  = plt.cm.get_cmap('Set2', len(groups))
 
-            for i, group in enumerate(groups):
-                for j, loc in enumerate(locations):
-                    x_pos = x[j] - 0.4 + i * bar_width
-                    # Key order: (location, group)
-                    bar_centers[(loc, group)] = x_pos
-                    row = summary[(summary['group'] == group) & (summary['location'] == loc)]
+        for i, grp in enumerate(groups):
+            for j, loc in enumerate(locations):
+                xpos = x[j] - 0.4 + i * bar_width
+                bar_centers[(loc, grp)] = xpos
+                row = summary[(summary['group'] == grp) &
+                              (summary['location'] == loc)]
+                if row.empty:
+                    continue
 
-                    if not row.empty:
-                        mean = row['mean'].values[0]
-                        ci = row['ci95'].values[0]
-                        count = row['count'].values[0]
+                mean, ci, n = row[['mean', 'ci95', 'count']].values[0]
+                ax.bar(xpos, mean, width=bar_width,
+                       color=color_map(i), alpha=0.85, zorder=2)
+                ax.errorbar(xpos, mean, yerr=ci, fmt='none',
+                            capsize=4, color='black', zorder=3)
 
-                        # Draw bar and then add error bars explicitly.
-                        ax.bar(x_pos, mean, width=bar_width,
-                               color=color_map(i), alpha=0.85,
-                               label=group if j == 0 else "",
-                               zorder=2)
-                        ax.errorbar(x_pos, mean, yerr=ci, fmt='none', capsize=4,
-                                    color='black', zorder=3)
+                dots = df[(df['group'] == grp) &
+                          (df['location'] == loc)]['alive_percent']
+                top  = max(mean + ci, dots.max() if not dots.empty else 0)
+                max_y = max(max_y, top)
 
-                        dots = df[(df['group'] == group) & (df['location'] == loc)]['alive_percent']
-                        top = max(mean + ci, dots.max() if not dots.empty else 0)
-                        max_y = max(max_y, top)
+                if plot_sample_size:
+                    ax.text(xpos, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
+                if plot_dots:
+                    ax.scatter(np.full_like(dots, xpos), dots,
+                               color='black', s=15, alpha=0.6, zorder=4)
 
-                        if plot_sample_size:
-                            ax.text(x_pos, top + 2, f'n = {count}', ha='center', va='bottom', fontsize=9)
-                        if plot_dots:
-                            ax.scatter(np.full_like(dots, x_pos), dots,
-                                       color='black', s=15, alpha=0.6, zorder=3)
+        # explicit legend (all groups that appeared)
+        handles = [Patch(facecolor=color_map(i), label=grp)
+                   for i, grp in enumerate(groups)]
+        ax.legend(handles=handles, title='Group')
 
-            ax.set_xticks(x)
-            ax.set_xticklabels(locations)
-            ax.legend(title='Group')
-            ax.margins(y=0.1)
+        # significance between groups within each location
+        if add_significance:
+            line_spacing = 8
+            sig_level = {loc: 0 for loc in locations}
+            for loc in locations:
+                for g1, g2 in itertools.combinations(groups, 2):
+                    s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
+                    s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
+                    if len(s1) > 1 and len(s2) > 1:
+                        _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
+                        if p < 0.05:
+                            x1, x2 = bar_centers[(loc, g1)], bar_centers[(loc, g2)]
+                            y      = max_y + (sig_level[loc] + 1) * line_spacing
+                            stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
+                            ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
+                                    color='black', linewidth=1, zorder=5)
+                            ax.text((x1 + x2)/2, y + 1.5, stars,
+                                    ha='center', va='bottom', fontsize=14, zorder=5)
+                            sig_level[loc] += 1
 
-            # **New Significance Block:**
-            # In flipped mode, for each location compare treatment groups (g1 vs. g2) for that location.
-            if add_significance:
-                line_spacing = 8
-                # We'll keep separate significance stacking per location.
-                sig_level = {loc: 0 for loc in locations}
-                for loc in locations:
-                    for g1, g2 in itertools.combinations(groups, 2):
-                        s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
-                        s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
-                        if len(s1) > 1 and len(s2) > 1:
-                            stat, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
-                            if p < 0.05:
-                                x1 = bar_centers.get((loc, g1), np.nan)
-                                x2 = bar_centers.get((loc, g2), np.nan)
-                                if np.isnan(x1) or np.isnan(x2):
-                                    continue
-                                y = max_y + (sig_level[loc] + 1) * line_spacing
-                                stars = '***' if p < 0.001 else '**' if p < 0.01 else '*'
-                                ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                        color='black', linewidth=1, zorder=4)
-                                ax.text((x1 + x2) / 2, y + 1.5, stars,
-                                        ha='center', va='bottom', fontsize=14, zorder=4)
-                                
-                                sig_level[loc] += 1
+        ax.set_xticks(x)
+        ax.set_xticklabels(locations)
 
+    # ── 3c. only group on the x‑axis (no locations) ───────────────────────────
     else:
-        # Group-only version: x-axis by group.
         x = np.arange(len(summary))
-        bar_centers = {group: xi for group, xi in zip(summary['group'], x)}
-        for xi, group in zip(x, summary['group']):
-            row = summary[summary['group'] == group]
-            mean = row['mean'].values[0]
-            ci = row['ci95'].values[0]
-            count = row['count'].values[0]
-            ax.bar(xi, mean, yerr=ci, capsize=5,
-                   width=0.6, color='#2ca02c' if include_likely else '#98df8a', alpha=0.8)
-            dots = df[df['group'] == group]['alive_percent']
-            top = max(mean + ci, dots.max() if not dots.empty else 0)
+        bar_centers = dict(zip(summary['group'], x))
+        for xi, grp in zip(x, summary['group']):
+            mean, ci, n = summary.loc[summary['group'] == grp,
+                                      ['mean', 'ci95', 'count']].values[0]
+            ax.bar(xi, mean, width=0.6,
+                   color='#2ca02c' if include_likely else '#98df8a', alpha=0.8, zorder=2)
+            ax.errorbar(xi, mean, yerr=ci, fmt='none',
+                        capsize=5, color='black', zorder=3)
+
+            dots = df[df['group'] == grp]['alive_percent']
+            top  = max(mean + ci, dots.max() if not dots.empty else 0)
             max_y = max(max_y, top)
+
             if plot_sample_size:
-                ax.text(xi, top + 2, f'n = {count}', ha='center', va='bottom', fontsize=9)
+                ax.text(xi, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
             if plot_dots:
                 ax.scatter(np.full_like(dots, xi), dots,
-                           color='black', s=15, alpha=0.6, zorder=3)
+                           color='black', s=15, alpha=0.6, zorder=4)
+
         ax.set_xticks(x)
         ax.set_xticklabels(summary['group'])
 
+        # significance between treatment groups
         if add_significance:
             line_spacing = 8
-            sig_level = 0
+            sig_level    = 0
             for g1, g2 in itertools.combinations(summary['group'], 2):
                 s1 = df[df['group'] == g1]['alive_percent']
                 s2 = df[df['group'] == g2]['alive_percent']
                 if len(s1) > 1 and len(s2) > 1:
-                    stat, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
+                    _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
                     if p < 0.05:
                         x1, x2 = bar_centers[g1], bar_centers[g2]
-                        y = max_y + (sig_level + 1) * line_spacing
-                        stars = '***' if p < 0.001 else '**' if p < 0.01 else '*'
+                        y      = max_y + (sig_level + 1) * line_spacing
+                        stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
                         ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                color='black', linewidth=1, zorder=4)
-                        ax.text((x1 + x2) / 2, y + 1.5, stars,
-                                ha='center', va='bottom', fontsize=14, zorder=4)
+                                color='black', linewidth=1, zorder=5)
+                        ax.text((x1 + x2)/2, y + 1.5, stars,
+                                ha='center', va='bottom', fontsize=14, zorder=5)
                         sig_level += 1
 
+    # ── 4. cosmetics ──────────────────────────────────────────────────────────
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.5)
     ax.set_ylabel('Alive Cells (%)')
     ax.set_title(title)
-    ax.relim()             # recompute data limits
-    ax.autoscale_view()    # apply them
+
+    ax.relim(); ax.autoscale_view()
     ymin, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax + 5)
-    
+
     plt.xticks(rotation=45)
     plt.tight_layout()
     return fig

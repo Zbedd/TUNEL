@@ -1,7 +1,7 @@
 # input_folder : "C:/VScode/TUNEL/Validation/nd2"
 # output_folder: "C:/VScode/TUNEL/Validation/output"
-input_folder : "G:/My Drive/KatzLab/TUNEL staining/Caitlin's Files/Raw nd2 Images"
-output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL"
+input_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/Raw nd2 Images/"
+output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL/TUNEL Third Staining reimaging 2_13_25/"
 
 l_map : {
     'cortex': ['CORTEX', 'cortex', 'corex'],
