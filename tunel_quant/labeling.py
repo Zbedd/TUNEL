@@ -109,7 +109,7 @@ def label_nuclei(
     return_binary: bool = False,
     verbose: bool = False,
     apply_masking: bool = False,
-    mask_folder: Path = Path(r"G:\My Drive\KatzLab\TUNEL staining\Caitlin's Files\nd2 masks"),     # directory containing mask TIFFs
+    mask_folder: Path = None,     # directory containing mask TIFFs
     name: str = None            # original image file path (e.g. 'image.nd2')
     ):
     """
@@ -214,6 +214,8 @@ def label_nuclei(
         else:
             mask_img = np.squeeze(mask_img)
             roi = mask_img > 0
+            if roi.ndim == 3:
+                roi = roi[..., 0]
             arr = labels.get() if hasattr(labels, "get") else np.array(labels)
             keep = np.ones_like(arr, bool)
             for lid in np.unique(arr):

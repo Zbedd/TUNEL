@@ -4,6 +4,7 @@ import sys
 
 import os
 import pandas as pd
+from pathlib import Path
 from datetime import datetime
 
 # Make package importable
@@ -28,11 +29,13 @@ def main(cfg):
     
     
     '''PIPELINE FUNCTIONS'''
+    apply_masks = cfg.get("mask_folder") is not None
+    mask_path = Path(cfg.get("mask_folder"))
         
     date_str = datetime.now().strftime('%Y-%m-%d')
-    analysis = summarize.analyze_folder(cfg['input_folder'], cfg['seg_method'], cfg['conThresh'], cfg['kSize'], cfg['magnification'])
-    # Save the analysis data to a CSV file
+    analysis = summarize.analyze_folder(cfg['input_folder'], mask_folder=mask_path, apply_masks=apply_masks, method=cfg['seg_method'], conThresh=cfg['conThresh'], kSize=cfg['kSize'], magnification=cfg['magnification'])
     
+    # Save the analysis data to a CSV file
     summary = summarize.summarize_analysis(analysis, cfg['l_map'])
     
     by_mouse = summarize.summarize_by_mouse(summary)
@@ -64,6 +67,11 @@ if __name__ == "__main__":
         "--input", "-i",
         default=cfg["input_folder"],
         help=f"Input folder (default: {cfg['input_folder']})"
+    )    
+    parser.add_argument( #input
+        "--mask", "-r",
+        default=cfg["mask_folder"],
+        help=f"Mask folder (default: {cfg['mask_folder']})"
     )    
     parser.add_argument( #output
         "--output", "-o",

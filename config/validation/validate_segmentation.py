@@ -15,16 +15,14 @@ import os, sys, random, warnings
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
-from pathlib import Path
 
 # ─────────────────────────────────────────────────────────────
 # CONFIG
 sample_size   = 3
-zoom          = '20'         # magnification filter, None for all
-image_type    = 'ca3'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
+zoom          = '10'         # magnification filter, None for all
+image_type    = 'ca1'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
 method        = 'yolo'       # 'yolo' | 'otsu'
-input_folder  = r"G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/Raw nd2 Images/"
-mask_folder  = Path("G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/nd2 masks/")
+input_folder  = r"G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/"
 kernel_size   = 51
 confidenceThreshold = 1.0
 # ─────────────────────────────────────────────────────────────
@@ -63,7 +61,7 @@ def load_and_process(folder, n_images):
         labels, _, binary = labeling.label_nuclei(
             prepd, method=method, return_binary=True, iterate=False,
             remove_large_outliers=False, remove_small_outliers=False,
-            apply_masking=True, mask_folder=mask_folder, name=name
+            apply_masking=True, name=name
         )
 
         df = processing.analyze_nuclei(
