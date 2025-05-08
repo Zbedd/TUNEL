@@ -42,7 +42,7 @@ def main(cfg):
     by_mouse_collapsed = summarize.summarize_by_mouse(summary, collapse_to_groups=True)
     
     # Plot based on the locations mapped in location_map (stored in summary dataframe)
-    summary_plot = plotting.plot_summary(summary, title = 'Percentage of cells alive by group (test data)', include_likely=True, plot_dots = False, plot_sample_size=True, include_location = True, include_other = False, flip_group_location=True, add_significance=True)
+    summary_plot = plotting.plot_summary(summary, title = 'Percentage of cells alive by group (test data)', include_likely=cfg['include_likely'], plot_dots = False, plot_sample_size=True, include_location = True, include_other = False, flip_group_location=True, add_significance=True)
     
     '''WRITING FUNCTIONS'''
     # Write by_mouse and by_mouse_collapsed to an Excel file with two sheets
@@ -82,6 +82,11 @@ if __name__ == "__main__":
         "--seg_method", "-m",
         default=cfg["seg_method"],
         help=f"Segmentation method (default: {cfg['seg_method']})"
+    )
+    parser.add_argument( #method
+        "--include_likely", "-l",
+        default=cfg["include_likely"],
+        help=f"Include likely (default: {cfg['include_likely']})"
     )
 
     args = parser.parse_args()

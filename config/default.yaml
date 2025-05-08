@@ -1,8 +1,11 @@
 # input_folder : "C:/VScode/TUNEL/Validation/nd2"
 # output_folder: "C:/VScode/TUNEL/Validation/output"
-input_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Raw nd2 Images/"
-mask_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/nd2 masks/"
-output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL/TUNEL Second Third Datasets Merged/"
+
+#Merged: TUNEL Second Third Datasets Merged
+#Third: TUNEL Third Staining reimaging 2_13_25
+input_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/Raw nd2 Images/"
+mask_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/nd2 masks/"
+output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL/TUNEL Third Staining reimaging 2_13_25/"
 
 l_map : {
     'cortex': ['CORTEX', 'cortex', 'corex'],
@@ -22,3 +25,4 @@ seg_method : 'yolo'
 conThresh : 0.8
 kSize : 31
 magnification : 20 # magnification filter, None for all
+inlcude_likely : False # include likely alive/dead cells in the plots
