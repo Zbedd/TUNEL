@@ -27,23 +27,15 @@ def main(cfg):
     if cfg["seg_method"] not in valid_methods:
         raise ValueError(f"Unknown seg_method '{cfg['seg_method']}', must be one of {valid_methods!r}")
     
-    
     '''PIPELINE FUNCTIONS'''
     apply_masks = cfg.get("mask_folder") is not None
     mask_path = Path(cfg.get("mask_folder"))
         
     date_str = datetime.now().strftime('%Y-%m-%d')
-    analysis = summarize.analyze_folder(cfg['input_folder'], mask_folder=mask_path, apply_masks=apply_masks, method=cfg['seg_method'], conThresh=cfg['conThresh'], kSize=cfg['kSize'], magnification=cfg['magnification'])
+    analysis = summarize.analyze_folder(cfg['input_folder'], mask_folder=mask_path, apply_masks=apply_masks, sex = cfg['sex'], sex_path = cfg['sex_path'], method=cfg['seg_method'], conThresh=cfg['conThresh'], kSize=cfg['kSize'], magnification=cfg['magnification'])
     
     # Save the analysis data to a CSV file
     summary = summarize.summarize_analysis(analysis, cfg['l_map'])
-    
-    # Select only mice of a given sex, if specified
-    if cfg['sex'] is not None:
-        sex_csv = pd.read_csv(cfg['sex_path'])
-        mice = sex_csv[sex_csv['Sex'].str.lower() == 'f']['Mouse']
-        pattern = '|'.join(mice.astype(str))
-        summary = summary[summary['name'].str.contains(pattern, na=False)]    
     
     by_mouse = summarize.summarize_by_mouse(summary)
     by_mouse_collapsed = summarize.summarize_by_mouse(summary, collapse_to_groups=True)

@@ -2,7 +2,7 @@ import pandas as pd
 import time
 from . import labeling, local_io, processing
 
-def analyze_folder(path, apply_masks = False, mask_folder = None, method = 'otsu', conThresh = 0.8, kSize = 31, magnification = None):
+def analyze_folder(path, apply_masks = False, mask_folder = None, sex = None, sex_path = None, method = 'otsu', conThresh = 0.8, kSize = 31, magnification = None):
     """
     Analyzes all ND2 images in a given folder.
 
@@ -18,6 +18,10 @@ def analyze_folder(path, apply_masks = False, mask_folder = None, method = 'otsu
       method (str): The method for nuclear labeling. Can be 'otsu' or 'yolo'.
       conThresh (float): Weighting for certainty of alive or dead. Must be >= 1.
       magnification (int): The magnification of the images. Used for filtering images. None for all.
+      apply_masks (bool): Whether to apply masks to the images. Default is False.
+      mask_folder (str): The path to the folder containing masks. Required if apply_masks is True.
+      sex (bool): Whether to filter for only one sex of mice. Can be 'm' or 'f'. Default is None.
+      sex_path (str): The path to the CSV file two columns: 'Mouse' and 'Sex'. 
 
     Returns:
       list: A list of entries [name, analysis], where:
@@ -39,6 +43,16 @@ def analyze_folder(path, apply_masks = False, mask_folder = None, method = 'otsu
         print(f"{len(images)} images found with {magnification}x magnification.")
     else:
         print(f"Analyzing {len(images)} images...")
+    
+    if sex:
+        print(f"Filtering images by sex: " + str(sex))
+        sex_csv = pd.read_csv(sex_path)
+        mice = (
+            sex_csv.loc[sex_csv['Sex'].str.lower() == sex.lower(), 'Mouse']
+            .astype(str).str.strip()        # to be safe, strip whitespace
+            .tolist()
+        )        
+        images = [img for img in images if img[0].split('_')[0] in mice]
 
     for image in images:
         # Unpack the image components:

@@ -23,8 +23,8 @@ l_map : {
     # 'Cerebellum': ['Cerebellum'],
 }
 
-sex : None # Can be None, M, F
-sex_path : r"G:\My Drive\KatzLab\TUNEL staining\TUNEL Second Third Datasets Merged\Available animals.csv"
+sex : M # Can be None, M, F
+sex_path : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Available animals.csv"
 seg_method : 'yolo'
 conThresh : 0.8
 kSize : 31
