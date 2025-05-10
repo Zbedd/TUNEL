@@ -21,7 +21,7 @@ from pathlib import Path
 # CONFIG
 sample_size   = 10
 zoom          = '20'         # magnification filter, None for all
-image_type    = None        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
+image_type    = 'cortex'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
 method        = 'yolo'       # 'yolo' | 'otsu'
 input_folder  = r"G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/Raw nd2 Images/"
 mask_folder  = Path("G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/nd2 masks/")

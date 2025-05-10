@@ -38,10 +38,17 @@ def main(cfg):
     # Save the analysis data to a CSV file
     summary = summarize.summarize_analysis(analysis, cfg['l_map'])
     
+    # Select only mice of a given sex, if specified
+    if cfg['sex'] is not None:
+        sex_csv = pd.read_csv(cfg['sex_path'])
+        mice = sex_csv[sex_csv['Sex'].str.lower() == 'f']['Mouse']
+        pattern = '|'.join(mice.astype(str))
+        summary = summary[summary['name'].str.contains(pattern, na=False)]    
+    
     by_mouse = summarize.summarize_by_mouse(summary)
     by_mouse_collapsed = summarize.summarize_by_mouse(summary, collapse_to_groups=True)
     
-    # Plot based on the locations mapped in location_map (stored in summary dataframe)
+    # Plot based on the locations mapped in location_map (stored in summary dataframe)   
     summary_plot = plotting.plot_summary(summary, title = 'Percentage of cells alive by group (test data)', include_likely=cfg['include_likely'], plot_dots = False, plot_sample_size=True, include_location = True, include_other = False, flip_group_location=True, add_significance=True)
     
     '''WRITING FUNCTIONS'''
@@ -62,7 +69,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Run pipeline (YAML defaults + CLI overrides)"
     )
-
     parser.add_argument( #input
         "--input", "-i",
         default=cfg["input_folder"],
@@ -78,21 +84,30 @@ if __name__ == "__main__":
         default=cfg["output_folder"],
         help=f"Output folder (default: {cfg['output_folder']})"
     )
+    parser.add_argument( #sex
+        "--sex", "-s",
+        default=cfg["sex"],
+        help=f"Sex (default: {cfg['sex']})"
+    )
     parser.add_argument( #method
         "--seg_method", "-m",
         default=cfg["seg_method"],
         help=f"Segmentation method (default: {cfg['seg_method']})"
     )
-    parser.add_argument( #method
+    parser.add_argument( #include_likely
         "--include_likely", "-l",
         default=cfg["include_likely"],
         help=f"Include likely (default: {cfg['include_likely']})"
     )
+    
 
     args = parser.parse_args()
     
     cfg["input_folder"]       = args.input
+    cfg["mask_folder"]        = args.mask
     cfg["output_folder"]      = args.output
+    cfg["sex"]                = args.sex
     cfg["seg_method"]         = args.seg_method
-    
+    cfg["include_likely"]     = args.include_likely
+
     main(cfg)
