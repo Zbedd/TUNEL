@@ -81,9 +81,10 @@ def analyze_folder(path, apply_masks = False, mask_folder = None, sex = None, se
 def summarize_analysis(all_analysis, location_map = None):
   '''
   Accepts the output of analyze_folder and returns a summary of the analysis in the
-  form of a dataframe with columns ['group','location', 'name', 'definitely alive', 'definitely dead', 'likely alive', 'likely dead']
+  form of a dataframe with columns ['name', 'group', 'location', 'mouse', 'definitely alive', 'definitely dead', 'likely alive', 'likely dead']
+  
+  Reformats on the analyze_folder dataframe with location, groups, and counts of alive/dead cells.
   '''
-
 
   group_map = {
       'ctrl_CRE+': ['ctrl_CRE+'],
@@ -107,10 +108,12 @@ def summarize_analysis(all_analysis, location_map = None):
         'Cerebellum': ['Cerebellum'],
     }
 
-  df = pd.DataFrame(columns=['group', 'location', 'name', 'definitely alive', 'definitely dead', 'likely alive', 'likely dead'])
+  df = pd.DataFrame(columns=['name', 'group', 'location', 'mouse', 'definitely alive', 'definitely dead', 'likely alive', 'likely dead'])
 
   for image in all_analysis:
     name = image[0]
+
+    mouse = name.split('_')[0]  # Assuming mouseID is the first part of the name before an underscore
 
     group = 'other'  # Default group if no match is found
     # Iterate through the group_map to find a match
@@ -133,7 +136,7 @@ def summarize_analysis(all_analysis, location_map = None):
     def_dead = counts.get('definitely dead', 0)
     def_alive = counts.get('definitely alive', 0)
 
-    df.loc[len(df)] = [group, location, name, def_alive, def_dead, likely_alive, likely_dead]
+    df.loc[len(df)] = [name, group, location, mouse, def_alive, def_dead, likely_alive, likely_dead]
 
 
   return df

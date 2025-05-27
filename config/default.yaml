@@ -29,4 +29,4 @@ seg_method : 'yolo'
 conThresh : 0.8
 kSize : 31
 magnification : 20 # magnification filter, None for all
-include_likely : True # include likely alive/dead cells in the plots
+include_likely : True # Bool | include likely alive/dead cells in the plots

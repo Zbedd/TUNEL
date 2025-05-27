@@ -258,6 +258,8 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
       • include_other       – drop rows whose group/location == 'other'
     """
 
+    raise KeyError("The function most be modified: sample size (mouse), stats, error bars")
+
     if flip_group_location and not include_location:
         raise ValueError("flip_group_location can only be True if include_location is True")
 
@@ -269,13 +271,14 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
 
     # ── 1. compute alive % at the row level ───────────────────────────────────
     if include_likely:
-        alive_cols = ['definitely alive', 'likely alive']
-        total_cols = alive_cols + ['definitely dead', 'likely dead']
+        alive_cols = ['definitely alive', 'likely alive', 'likely dead']
+        total_cols = alive_cols + ['definitely dead']
     else:
         alive_cols = ['definitely alive']
         total_cols = alive_cols + ['definitely dead']
 
     df['alive_percent'] = df[alive_cols].sum(axis=1) / df[total_cols].sum(axis=1) * 100
+    print(df['alive_percent'].describe())
 
     # group either by (group, location) or just group
     group_cols = ['group', 'location'] if include_location else ['group']
@@ -460,7 +463,7 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
 
     # ── 4. cosmetics ──────────────────────────────────────────────────────────
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.5)
-    ax.set_ylabel('Alive Cells (%)')
+    ax.set_ylabel('TUNEL-positive nuclei (%)')
     ax.set_title(title)
 
     ax.relim(); ax.autoscale_view()
