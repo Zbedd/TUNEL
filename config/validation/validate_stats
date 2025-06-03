@@ -1,0 +1,33 @@
+'''Pulls from sample summarize_analysis output to test statistical analysis functions'''
+
+import sys  
+
+# Make package importable
+module_dir = r"C:/VScode/TUNEL/"
+if module_dir not in sys.path:
+    sys.path.insert(0, module_dir)
+
+import os
+from tunel_quant import stats
+from datetime import datetime
+import pandas as pd
+
+#Read csv 
+#r'C:\VScode\TUNEL\validation\summary_MF_includeLikely_Sample.csv'
+#r'C:\VScode\TUNEL\validation\GPT_built_pos_control.csv'
+
+summary_path = r'C:\VScode\TUNEL\validation\summary_MF_includeLikely_Sample.csv'
+
+out_folder_path = r'C:\VScode\TUNEL\config\validation\output'
+include_likely = True  # Set to True or False based on your test case
+post_hoc = False  # Set to True or False based on your test case
+
+summary = pd.read_csv(summary_path)
+date_str = datetime.now().strftime('%Y-%m-%d')
+
+# Perform and write statistical analysis on the summary data
+anova_output_path = os.path.join(out_folder_path, f'anova_results_{date_str}.xlsx')
+stats.anova_by_location(summary, post_hoc=post_hoc, include_likely=include_likely, output_path=anova_output_path)
+
+mixed_output_path = os.path.join(out_folder_path, f'mixed_logistic_results_{date_str}.xlsx')
+stats.run_mixed_logistic_by_location(summary, output_path=mixed_output_path)

@@ -44,7 +44,7 @@ def analyze_folder(path, apply_masks = False, mask_folder = None, sex = None, se
     else:
         print(f"Analyzing {len(images)} images...")
     
-    if sex:
+    if sex is not None:
         print(f"Filtering images by sex: " + str(sex))
         sex_csv = pd.read_csv(sex_path)
         mice = (

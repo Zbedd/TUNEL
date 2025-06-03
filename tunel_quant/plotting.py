@@ -245,31 +245,29 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
     """
     Plots a summary barplot of alive cell percentage.
 
-    By default, the x‑axis shows 'group' (with sub‑bars for each 'location' when
+    By default, the x-axis shows 'group' (with sub-bars for each 'location' when
     include_location is True).  If flip_group_location is True (and include_location
-    is True), the x‑axis shows 'location' with sub‑bars for each group.
+    is True), the x-axis shows 'location' with sub-bars for each group.
 
     Optional features
     -----------------
       • include_likely      – include “likely alive/dead” counts in percentages
       • plot_dots           – scatter raw sample points on each bar
-      • plot_sample_size    – print “n = …” above each bar
-      • add_significance    – Welch‑t tests + significance stars
+      • plot_sample_size    – print “n = …” above each bar (now counts mice)
+      • add_significance    – placeholder for future sig-bars
       • include_other       – drop rows whose group/location == 'other'
     """
-
-    raise KeyError("The function most be modified: sample size (mouse), stats, error bars")
 
     if flip_group_location and not include_location:
         raise ValueError("flip_group_location can only be True if include_location is True")
 
     df = df.copy()
 
-    # ── 0. pre‑filter 'other' rows ─────────────────────────────────────────────
+    # ── 0. filter out 'other' if requested ─────────────────────────────────────
     if not include_other:
         df = df[(df['location'] != 'other') & (df['group'] != 'other')]
 
-    # ── 1. compute alive % at the row level ───────────────────────────────────
+    # ── 1. compute alive % per image ──────────────────────────────────────────
     if include_likely:
         alive_cols = ['definitely alive', 'likely alive', 'likely dead']
         total_cols = alive_cols + ['definitely dead']
@@ -278,41 +276,51 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
         total_cols = alive_cols + ['definitely dead']
 
     df['alive_percent'] = df[alive_cols].sum(axis=1) / df[total_cols].sum(axis=1) * 100
-    print(df['alive_percent'].describe())
 
-    # group either by (group, location) or just group
+    # ── 1b. compute mouse-level sample sizes ──────────────────────────────────
     group_cols = ['group', 'location'] if include_location else ['group']
-    summary = (df.groupby(group_cols)['alive_percent']
-                 .agg(['mean', 'std', 'count'])
-                 .reset_index())
+    mouse_counts = (
+        df.groupby(group_cols)['mouse']
+          .nunique()
+          .reset_index(name='n_mice')
+    )
+
+    # ── 2. build summary (still image-level stats if you want) ────────────────
+    summary = (
+        df.groupby(group_cols)['alive_percent']
+          .agg(['mean', 'std', 'count'])
+          .reset_index()
+          .merge(mouse_counts, on=group_cols)
+    )
     summary['sem']  = summary['std'] / np.sqrt(summary['count'])
     summary['ci95'] = summary['sem'] * 1.96
 
-    # ── 2. plotting scaffold ──────────────────────────────────────────────────
-    fig, ax   = plt.subplots(figsize=(12, 6))
-    max_y     = 0           # track max so we can place sig bars
-    bar_centers = {}        # map (group,loc) → x position (or reverse if flipped)
+    # ── 3. plotting scaffold ──────────────────────────────────────────────────
+    fig, ax = plt.subplots(figsize=(12, 6))
+    max_y = 0
+    bar_centers = {}
 
-    # ── 3a. group + location both shown (default orientation) ─────────────────
+    # ── 3a. group+location side-by-side ───────────────────────────────────────
     if include_location and not flip_group_location:
-        groups     = summary['group'].unique()
-        locations  = summary['location'].unique()
-        x          = np.arange(len(groups))
-        bar_width  = 0.8 / len(locations)
-        color_map  = plt.cm.get_cmap('Set2', len(locations))
+        groups    = summary['group'].unique()
+        locations = summary['location'].unique()
+        x         = np.arange(len(groups))
+        bar_w     = 0.8 / len(locations)
+        cmap      = plt.cm.get_cmap('Set2', len(locations))
 
         for i, loc in enumerate(locations):
             for j, grp in enumerate(groups):
-                xpos = x[j] - 0.4 + i * bar_width
+                xpos = x[j] - 0.4 + i * bar_w
                 bar_centers[(grp, loc)] = xpos
+
                 row = summary[(summary['group'] == grp) &
                               (summary['location'] == loc)]
                 if row.empty:
                     continue
 
-                mean, ci, n = row[['mean', 'ci95', 'count']].values[0]
-                ax.bar(xpos, mean, width=bar_width,
-                       color=color_map(i), alpha=0.85, zorder=2)
+                mean, ci, img_n, n_mouse = row[['mean','ci95','count','n_mice']].iloc[0]
+                ax.bar(xpos, mean, width=bar_w,
+                       color=cmap(i), alpha=0.85, zorder=2)
                 ax.errorbar(xpos, mean, yerr=ci, fmt='none',
                             capsize=4, color='black', zorder=3)
 
@@ -322,59 +330,43 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
                 max_y = max(max_y, top)
 
                 if plot_sample_size:
-                    ax.text(xpos, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
+                    ax.text(xpos, top + 2,
+                            f'n = {n_mouse}', ha='center', va='bottom', fontsize=9)
                 if plot_dots:
                     ax.scatter(np.full_like(dots, xpos), dots,
                                color='black', s=15, alpha=0.6, zorder=4)
 
-        # explicit legend  (all locations that actually appeared)
-        handles = [Patch(facecolor=color_map(i), label=loc)
+        handles = [Patch(facecolor=cmap(i), label=loc)
                    for i, loc in enumerate(locations)]
         ax.legend(handles=handles, title='Location')
 
-        # significance between groups within each location
         if add_significance:
-            line_spacing = 8
-            sig_level    = 0
-            for loc in locations:
-                for g1, g2 in itertools.combinations(groups, 2):
-                    s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
-                    s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
-                    if len(s1) > 1 and len(s2) > 1:
-                        _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
-                        if p < 0.05:
-                            x1, x2 = bar_centers[(g1, loc)], bar_centers[(g2, loc)]
-                            y      = max_y + (sig_level + 1) * line_spacing
-                            stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
-                            ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                    color='black', linewidth=1, zorder=5)
-                            ax.text((x1 + x2)/2, y + 1.5, stars,
-                                    ha='center', va='bottom', fontsize=14, zorder=5)
-                            sig_level += 1
+            print('WARNING: Significance bars in plotting not implemented yet.')
 
         ax.set_xticks(x)
         ax.set_xticklabels(groups)
 
-    # ── 3b. flipped orientation (location on x‑axis, colours = group) ─────────
+    # ── 3b. flipped: location on x, colours = group ──────────────────────────
     elif include_location and flip_group_location:
-        locations  = summary['location'].unique()
-        groups     = summary['group'].unique()
-        x          = np.arange(len(locations))
-        bar_width  = 0.8 / len(groups)
-        color_map  = plt.cm.get_cmap('Set2', len(groups))
+        locations = summary['location'].unique()
+        groups    = summary['group'].unique()
+        x         = np.arange(len(locations))
+        bar_w     = 0.8 / len(groups)
+        cmap      = plt.cm.get_cmap('Set2', len(groups))
 
         for i, grp in enumerate(groups):
             for j, loc in enumerate(locations):
-                xpos = x[j] - 0.4 + i * bar_width
+                xpos = x[j] - 0.4 + i * bar_w
                 bar_centers[(loc, grp)] = xpos
+
                 row = summary[(summary['group'] == grp) &
                               (summary['location'] == loc)]
                 if row.empty:
                     continue
 
-                mean, ci, n = row[['mean', 'ci95', 'count']].values[0]
-                ax.bar(xpos, mean, width=bar_width,
-                       color=color_map(i), alpha=0.85, zorder=2)
+                mean, ci, img_n, n_mouse = row[['mean','ci95','count','n_mice']].iloc[0]
+                ax.bar(xpos, mean, width=bar_w,
+                       color=cmap(i), alpha=0.85, zorder=2)
                 ax.errorbar(xpos, mean, yerr=ci, fmt='none',
                             capsize=4, color='black', zorder=3)
 
@@ -384,48 +376,33 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
                 max_y = max(max_y, top)
 
                 if plot_sample_size:
-                    ax.text(xpos, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
+                    ax.text(xpos, top + 2,
+                            f'n = {n_mouse}', ha='center', va='bottom', fontsize=9)
                 if plot_dots:
                     ax.scatter(np.full_like(dots, xpos), dots,
                                color='black', s=15, alpha=0.6, zorder=4)
 
-        # explicit legend (all groups that appeared)
-        handles = [Patch(facecolor=color_map(i), label=grp)
+        handles = [Patch(facecolor=cmap(i), label=grp)
                    for i, grp in enumerate(groups)]
         ax.legend(handles=handles, title='Group')
 
-        # significance between groups within each location
         if add_significance:
-            line_spacing = 8
-            sig_level = {loc: 0 for loc in locations}
-            for loc in locations:
-                for g1, g2 in itertools.combinations(groups, 2):
-                    s1 = df[(df['group'] == g1) & (df['location'] == loc)]['alive_percent']
-                    s2 = df[(df['group'] == g2) & (df['location'] == loc)]['alive_percent']
-                    if len(s1) > 1 and len(s2) > 1:
-                        _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
-                        if p < 0.05:
-                            x1, x2 = bar_centers[(loc, g1)], bar_centers[(loc, g2)]
-                            y      = max_y + (sig_level[loc] + 1) * line_spacing
-                            stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
-                            ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                    color='black', linewidth=1, zorder=5)
-                            ax.text((x1 + x2)/2, y + 1.5, stars,
-                                    ha='center', va='bottom', fontsize=14, zorder=5)
-                            sig_level[loc] += 1
+            print('WARNING: Significance bars in plotting not implemented yet.')
 
         ax.set_xticks(x)
         ax.set_xticklabels(locations)
 
-    # ── 3c. only group on the x‑axis (no locations) ───────────────────────────
+    # ── 3c. only group ────────────────────────────────────────────────────────
     else:
         x = np.arange(len(summary))
         bar_centers = dict(zip(summary['group'], x))
+
         for xi, grp in zip(x, summary['group']):
-            mean, ci, n = summary.loc[summary['group'] == grp,
-                                      ['mean', 'ci95', 'count']].values[0]
+            row = summary[summary['group'] == grp].iloc[0]
+            mean, ci, img_n, n_mouse = row[['mean','ci95','count','n_mice']]
             ax.bar(xi, mean, width=0.6,
-                   color='#2ca02c' if include_likely else '#98df8a', alpha=0.8, zorder=2)
+                   color='#2ca02c' if include_likely else '#98df8a',
+                   alpha=0.8, zorder=2)
             ax.errorbar(xi, mean, yerr=ci, fmt='none',
                         capsize=5, color='black', zorder=3)
 
@@ -434,7 +411,8 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
             max_y = max(max_y, top)
 
             if plot_sample_size:
-                ax.text(xi, top + 2, f'n = {n}', ha='center', va='bottom', fontsize=9)
+                ax.text(xi, top + 2,
+                        f'n = {n_mouse}', ha='center', va='bottom', fontsize=9)
             if plot_dots:
                 ax.scatter(np.full_like(dots, xi), dots,
                            color='black', s=15, alpha=0.6, zorder=4)
@@ -442,34 +420,17 @@ def plot_summary(df, include_likely=True, include_location=True, plot_dots=True,
         ax.set_xticks(x)
         ax.set_xticklabels(summary['group'])
 
-        # significance between treatment groups
         if add_significance:
-            line_spacing = 8
-            sig_level    = 0
-            for g1, g2 in itertools.combinations(summary['group'], 2):
-                s1 = df[df['group'] == g1]['alive_percent']
-                s2 = df[df['group'] == g2]['alive_percent']
-                if len(s1) > 1 and len(s2) > 1:
-                    _, p = ttest_ind(s1, s2, equal_var=False, nan_policy='omit')
-                    if p < 0.05:
-                        x1, x2 = bar_centers[g1], bar_centers[g2]
-                        y      = max_y + (sig_level + 1) * line_spacing
-                        stars  = '***' if p < 0.001 else '**' if p < 0.01 else '*'
-                        ax.plot([x1, x1, x2, x2], [y, y+1, y+1, y],
-                                color='black', linewidth=1, zorder=5)
-                        ax.text((x1 + x2)/2, y + 1.5, stars,
-                                ha='center', va='bottom', fontsize=14, zorder=5)
-                        sig_level += 1
+            print('WARNING: Significance bars in plotting not implemented yet.')
 
     # ── 4. cosmetics ──────────────────────────────────────────────────────────
     ax.grid(True, which='both', linestyle='--', linewidth=0.5, alpha=0.5)
     ax.set_ylabel('TUNEL-positive nuclei (%)')
     ax.set_title(title)
-
     ax.relim(); ax.autoscale_view()
     ymin, ymax = ax.get_ylim()
     ax.set_ylim(0, ymax + 5)
-
     plt.xticks(rotation=45)
     plt.tight_layout()
+
     return fig

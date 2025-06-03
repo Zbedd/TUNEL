@@ -1,5 +1,6 @@
 # input_folder : "C:/VScode/TUNEL/Validation/nd2"
 # output_folder: "C:/VScode/TUNEL/Validation/output"
+# mask_folder: None
 
 #Merged: TUNEL Second Third Datasets Merged
 #Second: TUNEL Second Staining
@@ -23,7 +24,7 @@ l_map : {
     # 'Cerebellum': ['Cerebellum'],
 }
 
-sex : M # Can be None, M, F
+sex : 'F' # Can be None, M, F
 sex_path : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Available animals.csv"
 seg_method : 'yolo'
 conThresh : 0.8
