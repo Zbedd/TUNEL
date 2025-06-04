@@ -6,6 +6,7 @@ from ultralytics import YOLO
 import scipy.ndimage as ndi
 import cupy as cp
 from pathlib import Path
+from . import DEFAULTS
 
 
 from skimage.filters import threshold_otsu
@@ -46,7 +47,7 @@ def segmentation_pipeline_otsu(input_image, *, splitting=True):
 # segmentation using YOLO (first build model through yolo_model_training.py)
 # --------------------------------------------------------------------
 YOLO_MODEL = None
-path_base = Path(r"C:/VScode/TUNEL/runs/segment")   # root that holds train, train2, …
+path_base = Path(DEFAULTS.get("yolo_runs_dir", "runs/segment")).expanduser()
 
 # find every best.pt, keep the one whose parent run folder is newest
 YOLO_PATH = max(

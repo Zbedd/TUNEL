@@ -15,6 +15,7 @@ import os, zipfile, shutil, random, pathlib, sys
 import cv2
 import numpy as np
 from ultralytics import YOLO
+from . import DEFAULTS
 
 # ─── project paths ──────────────────────────────────────────────────────────
 ROOT = pathlib.Path(__file__).resolve().parent
@@ -28,9 +29,10 @@ if MODULE_DIR not in sys.path:
     sys.path.insert(0, MODULE_DIR)
 from tunel_quant import preprocessing   # preprocess_dapi(img)
 
-# Kaggle creds (edit as needed)
-KAG_DIR = pathlib.Path(r"C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab")
-os.environ["KAGGLE_CONFIG_DIR"] = str(KAG_DIR)
+# Kaggle credentials directory from defaults (optional)
+KAG_DIR = DEFAULTS.get("kaggle_config_dir")
+if KAG_DIR:
+    os.environ["KAGGLE_CONFIG_DIR"] = str(pathlib.Path(KAG_DIR))
 from kaggle.api.kaggle_api_extended import KaggleApi
 
 # ─── dataset helpers ────────────────────────────────────────────────────────

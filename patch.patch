@@ -1,0 +1,81 @@
+diff --git a/tunel_quant/yolo_model_training.py b/tunel_quant/yolo_model_training.py
+index 609a87d9529b5d563a3e358ce648fd851724f3aa..5f5e296d3d9ac2959af3607e0e0bb0f79b89bdc3 100644
+--- a/tunel_quant/yolo_model_training.py
++++ b/tunel_quant/yolo_model_training.py
+@@ -1,58 +1,60 @@
+ """Utility functions to build a DSB‑2018 nuclei dataset and fine‑tune YOLOv8.
+ All work is expressed as import‑safe functions so that other scripts can orchestrate
+ execution without side‑effects.
+ 
+ Suggested layout:
+ TUNEL/
+  ├─ tunel_quant/
+  │   ├─ __init__.py
+  │   └─ tunel_model_training.py   ← (this file)
+  └─ scripts/
+      └─ train_model.py            ← driver script
+ """
+ from __future__ import annotations
+ import os, zipfile, shutil, random, pathlib, sys
+ import cv2
+ import numpy as np
+ from ultralytics import YOLO
++from . import DEFAULTS
+ 
+ # ─── project paths ──────────────────────────────────────────────────────────
+ ROOT = pathlib.Path(__file__).resolve().parent
+ RAW_DIR   = ROOT / "yolo" / "dsb18" / "train_raw"
+ YOLO_DIR  = ROOT / "yolo" / "nuclei_yolo"
+ DATA_YAML = YOLO_DIR / "data.yaml"
+ 
+ # Ensure "tunel_quant.preprocessing" is importable when module is run as a script
+ MODULE_DIR = str(ROOT)
+ if MODULE_DIR not in sys.path:
+     sys.path.insert(0, MODULE_DIR)
+ from tunel_quant import preprocessing   # preprocess_dapi(img)
+ 
+-# Kaggle creds (edit as needed)
+-KAG_DIR = pathlib.Path(r"C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab")
+-os.environ["KAGGLE_CONFIG_DIR"] = str(KAG_DIR)
++# Kaggle credentials directory from defaults (optional)
++KAG_DIR = DEFAULTS.get("kaggle_config_dir")
++if KAG_DIR:
++    os.environ["KAGGLE_CONFIG_DIR"] = str(pathlib.Path(KAG_DIR))
+ from kaggle.api.kaggle_api_extended import KaggleApi
+ 
+ # ─── dataset helpers ────────────────────────────────────────────────────────
+ 
+ def download_dsb() -> None:
+     """Download Data‑Science‑Bowl‑2018 if missing and unzip under RAW_DIR."""
+     target = RAW_DIR.parent
+     target.mkdir(parents=True, exist_ok=True)
+     api = KaggleApi(); api.authenticate()
+     api.competition_download_file(
+         "data-science-bowl-2018", "stage1_train.zip", path=str(target), quiet=False
+     )
+     with zipfile.ZipFile(target / "stage1_train.zip") as zf:
+         zf.extractall(target / "train_raw")
+     print("✅ DSB‑2018 extracted →", target / "train_raw")
+ 
+ 
+ def masks_to_poly(mask_dir: pathlib.Path, lbl_txt: pathlib.Path) -> None:
+     """Convert binary mask PNGs into YOLO polygon txt."""
+     lbl_txt.parent.mkdir(parents=True, exist_ok=True)
+     with open(lbl_txt, "w") as f:
+         for m in mask_dir.glob("*.png"):
+             img = cv2.imread(str(m), cv2.IMREAD_GRAYSCALE)
+             if img is None:
+                 continue
+
+
+diff --git a/yolo/nuclei_yolo/data.yaml b/yolo/nuclei_yolo/data.yaml
+index eec799199e8e914baf94bd38d1ecaf2819e318f3..bff55855245978caf79d87185351fb2a239d7a69 100644
+--- a/yolo/nuclei_yolo/data.yaml
++++ b/yolo/nuclei_yolo/data.yaml
+@@ -1,5 +1,5 @@
+-path: C:\VScode\TUNEL\yolo\nuclei_yolo
++path: .
+ train: images/train
+ val:   images/val
+ nc:    1
+ names: ['nucleus']

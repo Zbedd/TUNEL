@@ -16,9 +16,9 @@ from datetime import datetime
 from scipy.stats import norm
 
 # Make package importable
-module_dir = r"C:/VScode/TUNEL/"
-if module_dir not in sys.path:
-    sys.path.insert(0, module_dir)
+module_dir = Path(__file__).resolve().parents[1]
+if str(module_dir) not in sys.path:
+    sys.path.insert(0, str(module_dir))
     
 from tunel_quant import summarize, plotting, stats
 

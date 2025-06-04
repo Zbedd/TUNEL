@@ -16,6 +16,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
 from pathlib import Path
+import yaml
+from pathlib import Path
+
+TUNEL_ROOT = Path(__file__).resolve().parents[1]
+DEFAULTS_PATH = TUNEL_ROOT / "config" / "default.yaml"
+with DEFAULTS_PATH.open("r") as f:
+    DEFAULTS = yaml.safe_load(f)
+
 
 # ─────────────────────────────────────────────────────────────
 # CONFIG
@@ -23,8 +31,8 @@ sample_size   = 10
 zoom          = '20'         # magnification filter, None for all
 image_type    = 'cortex'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
 method        = 'yolo'       # 'yolo' | 'otsu'
-input_folder  = r"G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/Raw nd2 Images/"
-mask_folder  = Path("G:/My Drive/KatzLab/TUNEL staining/TUNEL Third Staining reimaging 2_13_25/nd2 masks/")
+input_folder  = Path(DEFAULTS["input_folder"])
+mask_folder   = Path(DEFAULTS.get("mask_folder"))
 kernel_size   = 51
 confidenceThreshold = 1.0
 # ─────────────────────────────────────────────────────────────
@@ -34,9 +42,9 @@ warnings.filterwarnings("ignore",
     message=r".*clesperanto's cupy / CUDA backend is experimental.*",
     category=UserWarning)
 
-module_dir = r"C:/VScode/TUNEL/"
-if module_dir not in sys.path:
-    sys.path.insert(0, module_dir)
+module_dir = Path(__file__).resolve().parents[1]
+if str(module_dir) not in sys.path:
+    sys.path.insert(0, str(module_dir))
 
 from tunel_quant import labeling, local_io, preprocessing, processing
 

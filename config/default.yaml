@@ -1,33 +1,29 @@
-# input_folder : "C:/VScode/TUNEL/Validation/nd2"
-# output_folder: "C:/VScode/TUNEL/Validation/output"
-# mask_folder: None
+# Example paths; adjust as needed
+input_folder: "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Raw nd2 Images/"
+mask_folder: "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/nd2 masks/"
+output_folder: "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL/TUNEL Second Third Datasets Merged/"
 
-#Merged: TUNEL Second Third Datasets Merged
-#Second: TUNEL Second Staining
-#Third: TUNEL Third Staining reimaging 2_13_25
+# Additional project directories
+kaggle_config_dir: null  # directory containing kaggle.json
+yolo_runs_dir: runs/segment
 
-input_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Raw nd2 Images/"
-mask_folder : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/nd2 masks/"
-output_folder : "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Yu/TUNEL/TUNEL Second Third Datasets Merged/"
+l_map:
+  'cortex': ['CORTEX', 'cortex', 'corex']
+  'CA1': ['CA1', 'CA!']
+  # 'CA2': ['CA2']
+  'CA3': ['CA3']
+  # 'cpu': ['CPU', 'cpu']
+  # 'brainstem': ['brainstem']
+  # 'DG': ['DG']
+  # 'Anterior hippocampus': ['Anterior hippo']
+  # 'hippocampus': ['HIP', 'hip']
+  # 'Midbrain': ['Midbrain']
+  # 'Cerebellum': ['Cerebellum']
 
-l_map : {
-    'cortex': ['CORTEX', 'cortex', 'corex'],
-    'CA1': ['CA1', 'CA!'],
-    # 'CA2': ['CA2'],
-    'CA3': ['CA3']
-    # 'cpu': ['CPU', 'cpu'],
-    # 'brainstem': ['brainstem'],
-    # 'DG': ['DG'],
-    # 'Anterior hippocampus': ['Anterior hippo'],
-    # 'hippocampus': ['HIP', 'hip'],
-    # 'Midbrain': ['Midbrain'],
-    # 'Cerebellum': ['Cerebellum'],
-}
-
-sex : 'F' # Can be None, M, F
-sex_path : "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Available animals.csv"
-seg_method : 'yolo'
-conThresh : 0.8
-kSize : 31
-magnification : 20 # magnification filter, None for all
-include_likely : True # Bool | include likely alive/dead cells in the plots
+sex: 'F'  # Can be None, M, F
+sex_path: "G:/My Drive/KatzLab/TUNEL staining/TUNEL Second Third Datasets Merged/Available animals.csv"
+seg_method: 'yolo'
+conThresh: 0.8
+kSize: 31
+magnification: 20  # magnification filter, None for all
+include_likely: True  # Bool | include likely alive/dead cells in the plots

@@ -1,4 +1,4 @@
-path: C:\VScode\TUNEL\tunel_quant\yolo\nuclei_yolo
+path: .
 train: images/train
 val:   images/val
 nc: 1
