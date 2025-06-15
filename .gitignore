@@ -4,3 +4,4 @@ yolo/ #ignore images and model training
 *.nd2
 .vscode/
 .env
+.venv

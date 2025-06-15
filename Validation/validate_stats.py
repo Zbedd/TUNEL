@@ -1,3 +1,4 @@
+
 '''Pulls from sample summarize_analysis output to test statistical analysis functions'''
 
 import sys  
@@ -5,9 +6,9 @@ from pathlib import Path
 
 # Make package importable
 module_dir = Path(__file__).resolve().parents[1]
+
 if str(module_dir) not in sys.path:
     sys.path.insert(0, str(module_dir))
-
 import os
 from tunel_quant import stats
 from datetime import datetime

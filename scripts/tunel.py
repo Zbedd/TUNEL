@@ -1,7 +1,9 @@
 '''
-NEXT STEPS
-1. Group stats by location
-2. Update writing functions to save location-specific results
+WARNINGS
+
+Anova and mixed logistic may not treat likely dead as alive, unlike plots
+ANOVA may have a different interpretation than mixed logistic
+Mixed logistic gives unreasonably strong significance 
 '''
 
 import yaml
