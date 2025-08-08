@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-validate_segmentation_matplotlib.py
+validate_segmentation.py
 -----------------------------------
 Loads ND2 images, segments & classifies nuclei,
 and shows for each image:
@@ -17,7 +17,6 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, CheckButtons
 from pathlib import Path
 import yaml
-from pathlib import Path
 
 TUNEL_ROOT = Path(__file__).resolve().parents[1]
 DEFAULTS_PATH = TUNEL_ROOT / "config" / "default.yaml"
@@ -27,7 +26,7 @@ with DEFAULTS_PATH.open("r") as f:
 
 # ─────────────────────────────────────────────────────────────
 # CONFIG
-sample_size   = 10
+sample_size   = 5
 zoom          = '20'         # magnification filter, None for all
 image_type    = 'cortex'        # 'cortex' | 'CA1' | 'CA3'   filters for one image type if supplied
 method        = 'yolo'       # 'yolo' | 'otsu'
@@ -97,6 +96,7 @@ def load_and_process(folder, n_images):
             binary = binary.astype(np.uint8),
             classification= classification
         ))
+        print('image processed')
     return processed
 # ─────────────────────────────────────────────────────────────
 def main():

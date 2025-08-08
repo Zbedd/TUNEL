@@ -1,10 +1,19 @@
-'''
-WARNINGS
+"""
+TUNEL Analysis Main Script
 
-Anova and mixed logistic may not treat likely dead as alive, unlike plots
-ANOVA may have a different interpretation than mixed logistic
-Mixed logistic gives unreasonably strong significance 
-'''
+This script provides a command-line interface for complete TUNEL assay analysis
+workflows. It orchestrates batch processing of microscopy images, statistical
+analysis, and results export.
+
+IMPORTANT WARNINGS:
+- ANOVA and mixed logistic regression may handle 'likely dead' classifications differently than plotting functions
+- ANOVA and mixed logistic methods may produce different statistical interpretations
+- Mixed logistic regression sometimes yields unreasonably strong significance values
+- Always validate results with multiple statistical approaches
+
+The script supports configuration file-based analysis for reproducible workflows
+and handles various experimental designs including multi-group comparisons.
+"""
 
 import yaml
 import argparse
@@ -17,17 +26,26 @@ from pathlib import Path
 from datetime import datetime
 from scipy.stats import norm
 
-# Make package importable
+# Make package importable from script location
 module_dir = Path(__file__).resolve().parents[1]
 if str(module_dir) not in sys.path:
     sys.path.insert(0, str(module_dir))
     
 from tunel_quant import summarize, plotting, stats
 
+
 def main(cfg):
+    """
+    Main TUNEL analysis workflow execution.
+    
+    Parameters
+    ----------
+    cfg : dict
+        Configuration dictionary containing analysis parameters.
+    """
     import warnings
     warnings.filterwarnings(
-    "ignore", 
+        "ignore", 
     message="clesperanto's cupy / CUDA backend is experimental. Please use it with care.",
     category=UserWarning,
     module="pyclesperanto_prototype._tier0._cuda_backend"

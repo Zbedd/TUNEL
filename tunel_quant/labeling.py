@@ -1,126 +1,145 @@
-#Imports
+"""
+Nuclei Labeling and Segmentation
+
+This module provides functions for segmenting nuclei in DAPI-stained images
+using either traditional Otsu thresholding or modern YOLO deep learning models.
+"""
 import numpy as np
 import cv2
 import pyclesperanto_prototype as cle
-from ultralytics import YOLO
 import scipy.ndimage as ndi
-import cupy as cp
 from pathlib import Path
 from . import DEFAULTS
 
+# Optional cupy import for GPU acceleration when available
+try:
+    import cupy as cp
+    HAS_CUPY = True
+except ImportError:
+    cp = None
+    HAS_CUPY = False
 
 from skimage.filters import threshold_otsu
 from skimage.segmentation import watershed
 from skimage.morphology import binary_closing, disk
 
-    
-# NEXT STEPS
-#     • Integrate otsu and YOLO segmentation methods, potentially generating otsu through iteration. New function: label_nuclei_integrated
 
-
-# --------------------------------------------------------------------
-# segmentation using otsu
-# --------------------------------------------------------------------
 def segmentation_pipeline_otsu(input_image, *, splitting=True):
     """
-    Classic DAPI→Otsu threshold → holes/closing → optional watershed split →
-    GPU Voronoi-Otsu labelling.
+    Traditional nuclei segmentation using Otsu thresholding.
     
-    Will ignore splitting, as splitting is handled by yolo directly
+    Process: DAPI -> Gaussian blur -> Otsu threshold -> hole filling -> 
+             morphological closing -> optional watershed splitting -> 
+             GPU-accelerated Voronoi-Otsu labeling
+    
+    Args:
+        input_image: DAPI image as numpy array
+        splitting: Whether to apply watershed splitting to separate touching nuclei
+        
+    Returns:
+        tuple: (labels, binary_mask) where labels are instance segmentations
     """
-    blur   = cv2.GaussianBlur(input_image, (5,5), 2)
+    # Smooth the image to reduce noise before thresholding
+    blur = cv2.GaussianBlur(input_image, (5, 5), 2)
+    
+    # Apply Otsu's method to find optimal threshold
     binary = blur > threshold_otsu(blur)
+    
+    # Clean up the binary mask
     binary = ndi.binary_fill_holes(binary)
     binary = binary_closing(binary, footprint=disk(3))
 
     if splitting:
-        dist      = ndi.distance_transform_edt(binary)
+        # Use watershed to separate touching nuclei
+        dist = ndi.distance_transform_edt(binary)
         local_max = ndi.maximum_filter(dist, size=5) == dist
-        markers, _= ndi.label(local_max)
-        split     = watershed(-dist, markers, mask=binary)
-        binary    = split > 0
+        markers, _ = ndi.label(local_max)
+        split = watershed(-dist, markers, mask=binary)
+        binary = split > 0
 
+    # Generate instance labels using GPU-accelerated Voronoi-Otsu
     labels = cle.voronoi_otsu_labeling(binary, spot_sigma=7, outline_sigma=0.1)
     return labels, binary
 
-# --------------------------------------------------------------------
-# segmentation using YOLO (first build model through yolo_model_training.py)
-# --------------------------------------------------------------------
-YOLO_MODEL = None
-path_base = Path(DEFAULTS.get("yolo_runs_dir", "runs/segment")).expanduser()
 
-# find every best.pt, keep the one whose parent run folder is newest
-YOLO_PATH = max(
-    path_base.glob("train*/weights/best.pt"),
-    key=lambda p: p.stat().st_mtime,             # most-recent modification time
-)
-
+# Import YOLO functionality from external imageProcessingUtils package
 try:
-    YOLO_MODEL = YOLO(YOLO_PATH)
-    YOLO_MODEL.fuse()
-    print(f"✅ YOLO model loaded from '{YOLO_PATH}'")
-except Exception as e:
-    print(f"⚠️  Warning: could not load YOLO model at '{YOLO_PATH}': {e}\n"
-          "         YOLO-based segmentation will be unavailable.")
+    from imageProcessingUtils.yolo import segmentation_pipeline_yolo as external_yolo_pipeline
+    print("YOLO module loaded successfully from imageProcessingUtils")
+except ImportError as e:
+    print(f"Warning: could not import YOLO module from imageProcessingUtils: {e}")
+    print("         YOLO-based segmentation will be unavailable.")
+    external_yolo_pipeline = None
+
 
 def segmentation_pipeline_yolo(input_image, *, conf_thres=0.01):
-    """YOLO-v8 retina_masks segmentation → union mask + instance labels."""
-    if YOLO_MODEL is None:
+    """
+    Deep learning-based nuclei segmentation using YOLO model.
+    
+    Args:
+        input_image: DAPI image as numpy array
+        conf_thres: Confidence threshold for detections (lower = more sensitive)
+        
+    Returns:
+        tuple: (labels, binary_mask) from YOLO segmentation
+        
+    Raises:
+        RuntimeError: If YOLO model is not available
+    """
+    if external_yolo_pipeline is None:
         raise RuntimeError("YOLO model not loaded; cannot run YOLO segmentation.")
+    
+    return external_yolo_pipeline(input_image, conf_thres=conf_thres)
 
-    # prepare 3-ch uint8
-    img8 = np.clip(input_image, 0, 255).astype(np.uint8)
-    if img8.ndim == 2:
-        img8 = np.stack([img8]*3, axis=-1)
 
-    # inference
-    res   = YOLO_MODEL(img8, imgsz=768, mask_ratio = 1, conf=conf_thres, retina_masks=True, verbose=False)[0]
-    masks = res.masks.data  # Tensor (N, H, W)
-
-    h, w = input_image.shape
-    if masks is None or masks.shape[0] == 0:
-        binary = np.zeros((h, w), dtype=bool)
-        labels = np.zeros((h, w), dtype=int)
-    else:
-        mb     = masks.bool().cpu()
-        h, w = input_image.shape
-        labels = np.zeros((h,w),int)
-        for i in range(mb.shape[0]):
-            labels[ mb[i].cpu().numpy() ] = i+1
-        binary = labels>0
-
-    return labels, binary
-
-# --------------------------------------------------------------------
-# core labeling function
-# --------------------------------------------------------------------
 def label_nuclei(
     dapi_image: np.ndarray,
     *,
-    method: str = "otsu",            # 'otsu' | 'yolo'
-    iterate: bool = False,           # False → basic ; True → iterative
+    method: str = "otsu",
+    iterate: bool = False,
     splitting: bool = True,
     remove_small_outliers: bool = False,
     remove_large_outliers: bool = False,
     min_label_area: int = 250,
-    # iterative-mode knobs
+    # Parameters for iterative enhancement
     initial_clipLimit: float = 2.0,
     max_clip_iterations: int = 10,
     max_baseline_size: int = 80_000,
     return_binary: bool = False,
     verbose: bool = False,
     apply_masking: bool = False,
-    mask_folder: Path = None,     # directory containing mask TIFFs
-    name: str = None            # original image file path (e.g. 'image.nd2')
-    ):
+    mask_folder: Path = None,
+    name: str = None
+):
     """
-    One function, two behaviours:
-    ----------------------------------
-    • iterate=False  → single segmentation pass (old label_nuclei_basic)
-    • iterate=True   → baseline + CLAHE loop (old label_nuclei)
+    Main nuclei labeling function with two operating modes.
+    
+    This function can operate in basic mode (single segmentation pass) or
+    iterative mode (baseline + CLAHE enhancement loop for challenging images).
+    
+    Args:
+        dapi_image: Input DAPI image as numpy array
+        method: Segmentation method - 'otsu' for traditional, 'yolo' for deep learning
+        iterate: If False, single pass; if True, iterative enhancement
+        splitting: Whether to separate touching nuclei (Otsu only)
+        remove_small_outliers: Filter out very small detections
+        remove_large_outliers: Filter out very large detections
+        min_label_area: Minimum area for valid nuclei (pixels)
+        initial_clipLimit: Starting CLAHE clip limit for iterative mode
+        max_clip_iterations: Maximum CLAHE iterations
+        max_baseline_size: Target max nucleus size for iteration stopping
+        return_binary: Whether to return binary mask along with labels
+        verbose: Print iteration details
+        apply_masking: Apply tissue mask if available
+        mask_folder: Path to directory containing mask files
+        name: Original image filename for mask matching
+        
+    Returns:
+        labels: Instance segmentation labels
+        binary: Binary mask (if return_binary=True)
     """
 
-    # ---------- choose backend ------------------------------------------------
+    # Choose segmentation method and parameters
     if method == "otsu":
         seg_fn, seg_kw = segmentation_pipeline_otsu, {"splitting": splitting}
     elif method == "yolo":
@@ -128,176 +147,161 @@ def label_nuclei(
     else:
         raise ValueError("method must be 'otsu' or 'yolo'")
 
+    # Configure GPU acceleration if available
     cle.select_device("cupy")
     img = np.asarray(dapi_image)
 
-    # ========================================================================== 
-    #  BASIC PATH  (iterate == False)
-    # ========================================================================== 
+    # Basic mode: single segmentation pass
     if not iterate:
         labels, binary = seg_fn(img, **seg_kw)
 
-    # ========================================================================== 
-    #  ITERATIVE PATH  (iterate == True)
-    # ========================================================================== 
+    # Iterative mode: enhance difficult images with CLAHE
     else:
-        # --- STEP-1 baseline (no splitting) -----------------------------------
-        # For baseline, override splitting to False even if method=='otsu'
+        # Step 1: Get baseline segmentation without splitting
         base_kw = seg_kw.copy()
         if method == "otsu":
-            base_kw["splitting"] = False
+            base_kw["splitting"] = False  # Defer splitting until final pass
+            
         base_lbl, base_bin = seg_fn(img, **base_kw)
         baseline_max = np.bincount(base_bin.ravel())[1:].max(initial=0)
         if verbose:
-            print(f"[baseline] largest cc = {baseline_max}")
+            print(f"[baseline] largest connected component = {baseline_max}")
 
-        # --- CLAHE loop -------------------------------------------------------
-        clip  = initial_clipLimit
-        best  = (baseline_max, img)          # (best_max, best_image)
+        # Step 2: CLAHE enhancement loop to break up large regions
+        clip = initial_clipLimit
+        best = (baseline_max, img)  # Track best (smallest_max, image) pair
 
         for i in range(max_clip_iterations):
+            # Apply Contrast Limited Adaptive Histogram Equalization
             clahe_img = cv2.createCLAHE(clip, (8, 8)).apply(img.astype("uint8"))
             _, bin_tmp = seg_fn(clahe_img, **base_kw)
-            cur_max    = np.bincount(bin_tmp.ravel())[1:].max(initial=0)
+            cur_max = np.bincount(bin_tmp.ravel())[1:].max(initial=0)
 
             if verbose:
-                print(f"  iter {i:2d}: clip={clip:.1f}  max={cur_max}")
+                print(f"  iter {i:2d}: clip={clip:.1f}  max_component={cur_max}")
 
+            # Keep track of the best enhancement so far
             if cur_max < best[0]:
                 best = (cur_max, clahe_img)
+                
+            # Stop if we've achieved our target
             if cur_max <= max_baseline_size:
-                img = clahe_img           # accept
+                img = clahe_img
                 break
 
+            # Reduce clip limit for next iteration
             clip = max(round(clip - 0.2, 2), 0.2)
-        else:                               # loop exhausted
+        else:
+            # Loop completed without reaching target - use best result
             img = best[1] if best[0] < baseline_max else img
 
-        # --- STEP-2 final segmentation (with splitting flag) ------------------
+        # Step 3: Final segmentation with original parameters
         labels, binary = seg_fn(img, **seg_kw)
 
     # ========================================================================== 
-    #  COMMON POST-PROCESSING  (outlier + min-area filter) 
+    #  COMMON POST-PROCESSING: Statistical outlier removal and min-area filter
     # ========================================================================== 
-    arr   = labels.get() if hasattr(labels, "get") else labels
+    # Convert labels to CPU numpy array for statistical analysis
+    arr = labels.get() if hasattr(labels, "get") else labels
+    
+    # Calculate area of each segmented nucleus (excluding background label 0)
     areas = np.bincount(arr.ravel())[1:]
+    
     if areas.size:
-        Q1, Q3 = np.percentile(areas, [25, 75]); IQR = Q3 - Q1
+        # Calculate interquartile range (IQR) for outlier detection
+        Q1, Q3 = np.percentile(areas, [25, 75])
+        IQR = Q3 - Q1
+        
+        # Define outlier bounds using modified IQR method (0.5x instead of 1.5x for tighter bounds)
         low, high = Q1 - 0.5 * IQR, Q3 + 0.5 * IQR
+        
+        # Create boolean mask to track which labels to keep
         keep = np.ones_like(arr, bool)
 
+        # Filter labels based on size criteria
         for lid, a in enumerate(areas, 1):
-            if (remove_small_outliers and a < low) or \
-               (remove_large_outliers and a > high) or \
-               (a < min_label_area):
+            should_remove = (
+                (remove_small_outliers and a < low) or      # Remove statistical small outliers
+                (remove_large_outliers and a > high) or     # Remove statistical large outliers  
+                (a < min_label_area)                         # Remove below minimum area threshold
+            )
+            if should_remove:
                 keep[arr == lid] = False
 
+        # Remove filtered labels by setting them to background (0)
         arr[~keep] = 0
-        labels = cle.relabel_sequential(cp.asarray(arr) if hasattr(labels, "get") else arr)
+        
+        # Relabel sequentially to close gaps in label numbering
+        # Use GPU if available and original was GPU array, otherwise use CPU
+        if HAS_CUPY and hasattr(labels, "get"):
+            labels = cle.relabel_sequential(cp.asarray(arr))
+        else:
+            labels = cle.relabel_sequential(arr)
 
     # --------------------------------------------------------------------------
-    # Mask-based filtering
+    # Mask-based spatial filtering: Remove nuclei outside defined regions
     # --------------------------------------------------------------------------
     if apply_masking:
-        if name is None:
-            raise ValueError("mask_name must be provided when apply_masking=True")
-        # derive stem (remove extension if present)
-        stem = Path(name).stem
-        mask_file = mask_folder / f"{stem}_mask.tif"
-        # attempt to load mask; if fail, skip filtering
-        try:
-            mask_img = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
-        except Exception:
-            mask_img = None
-        if mask_img is None:
+        if mask_folder is None:
             if verbose:
-                print(f"⚠️  Warning: mask not found or unreadable at {mask_file}; skipping apply_masking")
+                print("⚠️  Warning: apply_masking=True but mask_folder is None; skipping masking")
+        elif name is None:
+            raise ValueError("mask_name must be provided when apply_masking=True")
         else:
-            mask_img = np.squeeze(mask_img)
-            roi = mask_img > 0
-            if roi.ndim == 3:
-                roi = roi[..., 0]
-            arr = labels.get() if hasattr(labels, "get") else np.array(labels)
-            keep = np.ones_like(arr, bool)
-            for lid in np.unique(arr):
-                if lid == 0:
-                    continue
-                nucleus = (arr == lid)
-                total = nucleus.sum()
-                inside = np.logical_and(nucleus, roi).sum()
-                if (total - inside) / total > 0.10:
-                    keep[nucleus] = False
-            arr[~keep] = 0
-            labels = cle.relabel_sequential(cp.asarray(arr) if hasattr(labels, "get") else arr)
+            # Derive filename stem (remove extension if present) for mask lookup
+            stem = Path(name).stem
+            mask_file = mask_folder / f"{stem}_mask.tif"
+            
+            # Attempt to load corresponding spatial mask
+            try:
+                mask_img = cv2.imread(str(mask_file), cv2.IMREAD_GRAYSCALE)
+            except Exception:
+                mask_img = None
+                
+            if mask_img is None:
+                if verbose:
+                    print(f"⚠️  Warning: mask not found or unreadable at {mask_file}; skipping apply_masking")
+            else:
+                # Prepare mask as binary region of interest (ROI)
+                mask_img = np.squeeze(mask_img)
+                roi = mask_img > 0
+                if roi.ndim == 3:
+                    roi = roi[..., 0]  # Take first channel if RGB
+                
+                # Convert labels to CPU array for mask processing
+                arr = labels.get() if hasattr(labels, "get") else np.array(labels)
+                keep = np.ones_like(arr, bool)
+                
+                # Check each nucleus for spatial overlap with ROI
+                for lid in np.unique(arr):
+                    if lid == 0:  # Skip background
+                        continue
+                    
+                    # Calculate overlap percentage with ROI
+                    nucleus = (arr == lid)
+                    total_pixels = nucleus.sum()
+                    inside_pixels = np.logical_and(nucleus, roi).sum()
+                    outside_fraction = (total_pixels - inside_pixels) / total_pixels
+                    
+                    # Remove nucleus if more than 10% is outside the ROI
+                    if outside_fraction > 0.10:
+                        keep[nucleus] = False
+                
+                # Apply mask filtering and relabel
+                arr[~keep] = 0
+                if HAS_CUPY and hasattr(labels, "get"):
+                    labels = cle.relabel_sequential(cp.asarray(arr))
+                else:
+                    labels = cle.relabel_sequential(arr)
                                     
+    # Calculate final statistics for all labeled nuclei
     stats = cle.statistics_of_labelled_pixels(dapi_image, labels)
 
+    # Return results based on requested output format
     if return_binary:
         return labels, stats, binary
     return labels, stats
 
-# def label_nuclei_basic(dapi_image, *, 
-#                        method = 'otsu',     
-#                        splitting=True,
-#                        remove_small_outliers=False,
-#                        remove_large_outliers=False,
-#                        return_binary=False,
-#                        min_label_area=250,
-#                        verbose=False):
-#     """
-#     dapi_image : 2D ndarray
-
-#     method : str
-#       "otsu" to use classic Otsu thresholding
-#       "yolo" to use the YOLO-v8 retina_masks segmentation
-
-#     The rest of the parameters control the CLAHE contrast-loop,
-#     optional splitting, outlier filtering, and min-area filtering.
-
-#     Returns:
-#       final_labels : labeled ndarray
-#       label_stats  : dict from cle.statistics_of_labelled_pixels
-#       (optional final_binary mask)
-#     """
-#     # pick the pipeline
-#     if method == "otsu":
-#         seg_fn = segmentation_pipeline_otsu
-#         seg_kwargs = {"splitting": splitting}
-#     elif method == "yolo":
-#         seg_fn = segmentation_pipeline_yolo
-#         seg_kwargs = {"splitting": splitting, "conf_thres": 0.1}
-#     else:
-#         raise ValueError(f"Unknown method {method!r}; choose 'otsu' or 'yolo'")
-
-#     cle.select_device("cupy")
-#     img = np.copy(dapi_image)
-
-#     # Generate binary mask
-#     labels, binary = seg_fn(img, **seg_kwargs)
-#     cc, _        = ndi.label(binary)
-#     sizes        = np.bincount(cc.ravel())[1:]
-#     max_area = sizes.max() if sizes.size else 0
-#     if verbose:
-#         print(f"Largest label = {max_area}")
-
-#     # outlier + min-area filters
-#     arr = labels.get() if hasattr(labels, "get") else labels
-#     areas = np.bincount(arr.ravel())[1:]
-#     if areas.size:
-#         Q1, Q3 = np.percentile(areas, [25,75]); IQR = Q3 - Q1
-#         low, high = Q1 - 0.5*IQR, Q3 + 0.5*IQR
-#         filt = arr.copy()
-#         for lid, a in enumerate(areas, 1):
-#             if (remove_small_outliers and a < low) or \
-#                (remove_large_outliers and a > high) or \
-#                (a < min_label_area):
-#                 filt[arr == lid] = 0
-#         labels = cle.relabel_sequential(
-#             cp.asarray(filt) if hasattr(labels, "get") else filt
-#         )
-
-#     stats = cle.statistics_of_labelled_pixels(dapi_image, labels)
-
-#     if return_binary:
-#         return labels, stats, binary
-#     return binary, stats
+# Note: Alternative basic labeling function was removed in favor of the more 
+# comprehensive label_nuclei() function above which includes all functionality
+# plus iterative enhancement capabilities.

@@ -1,32 +1,81 @@
+"""
+Data Analysis Workflow Module for TUNEL Experiments
+
+This module provides high-level analysis workflows that orchestrate the complete
+TUNEL assay pipeline from raw ND2 images to statistical summaries. It handles
+batch processing of microscopy data and integrates segmentation, classification,
+and statistical analysis steps.
+
+Key functionality:
+- Batch processing of ND2 image folders
+- Complete TUNEL analysis pipeline integration
+- Experimental metadata handling and parsing
+- Results aggregation and standardization
+- Sex-based filtering and magnification selection
+
+The module serves as the main entry point for complete TUNEL analysis workflows,
+coordinating between segmentation, processing, and analysis modules.
+"""
+
 import pandas as pd
 import time
 from . import labeling, local_io, processing
 
-def analyze_folder(path, apply_masks = False, mask_folder = None, sex = None, sex_path = None, method = 'otsu', conThresh = 0.8, kSize = 31, magnification = None):
+
+def analyze_folder(path, apply_masks=False, mask_folder=None, sex=None, sex_path=None, method='otsu', conThresh=0.8, kSize=31, magnification=None):
     """
-    Analyzes all ND2 images in a given folder.
+    Perform complete TUNEL analysis on all ND2 images in a folder.
+    
+    This function orchestrates the full analysis pipeline for a batch of ND2 images,
+    including image loading, nuclear segmentation, cell death classification, and
+    results aggregation. It handles experimental metadata extraction and provides
+    flexible filtering options.
+    
+    The analysis workflow:
+    1. Load ND2 images and extract DAPI/FITC channels
+    2. Perform nuclear segmentation on DAPI images  
+    3. Classify cell viability based on FITC fluorescence
+    4. Apply optional spatial masking and filtering
+    5. Aggregate results with experimental metadata
 
-    For each ND2 image in the folder, the function:
-      1. Loads the images using pull_nd2_images.
-      2. Unpacks each image into its components: a name, a DAPI channel image, and a FITC channel image.
-      3. Performs nuclear segmentation on the DAPI image using label_nuclei, with outlier removal enabled.
-      4. Analyzes the nuclei in the FITC image using analyze_nuclei to extract brightness and viability (alive/dead) information.
-      5. Aggregates the results into a list pairing the image name with its analysis data.
+    Parameters
+    ----------
+    path : str
+        Directory path containing ND2 image files for analysis.
+    apply_masks : bool, default=False
+        Whether to apply spatial region masks during analysis.
+    mask_folder : str, optional
+        Path to directory containing mask files. Required if apply_masks=True.
+        Mask files should match image filenames with '_mask.tif' suffix.
+    sex : str, optional
+        Filter for specific mouse sex ('m' or 'f'). None includes all mice.
+    sex_path : str, optional
+        Path to CSV file with 'Mouse' and 'Sex' columns for sex filtering.
+    method : str, default='otsu'
+        Nuclear segmentation method. Options: 'otsu' or 'yolo'.
+    conThresh : float, default=0.8
+        Confidence threshold for alive/dead classification. Must be ≥ 1.0.
+    kSize : int, default=31
+        Kernel size for background estimation in cell analysis.
+    magnification : int, optional
+        Filter images by magnification level. None includes all magnifications.
 
-    Parameters:
-      path (str): The path to the folder containing ND2 image files.
-      method (str): The method for nuclear labeling. Can be 'otsu' or 'yolo'.
-      conThresh (float): Weighting for certainty of alive or dead. Must be >= 1.
-      magnification (int): The magnification of the images. Used for filtering images. None for all.
-      apply_masks (bool): Whether to apply masks to the images. Default is False.
-      mask_folder (str): The path to the folder containing masks. Required if apply_masks is True.
-      sex (bool): Whether to filter for only one sex of mice. Can be 'm' or 'f'. Default is None.
-      sex_path (str): The path to the CSV file two columns: 'Mouse' and 'Sex'. 
-
-    Returns:
-      list: A list of entries [name, analysis], where:
-            - name is the image identifier.
-            - analysis is the output DataFrame (or similar structure) from analyze_nuclei.
+    Returns
+    -------
+    list
+        Analysis results as list of [image_name, analysis_dataframe] pairs.
+        Each analysis_dataframe contains nucleus-level measurements with columns:
+        - nucleus_id: Unique identifier for each nucleus
+        - absolute_brightness: Raw FITC intensity  
+        - relative_brightness: Background-corrected intensity
+        - alive_or_dead: Classification string
+        
+    Notes
+    -----
+    - Automatically extracts experimental metadata from ND2 filenames
+    - Handles missing files gracefully with warnings
+    - Progress tracking for batch processing
+    - Results compatible with downstream statistical analysis functions
     """
     all_analysis = []  # List to store analysis results for each image.
 

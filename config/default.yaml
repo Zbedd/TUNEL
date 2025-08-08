@@ -5,7 +5,6 @@ output_folder: "C:/Users/zbedd/OneDrive/GT/Opportunities/Katz Lab/Analysis for Y
 
 # Additional project directories
 kaggle_config_dir: null  # directory containing kaggle.json
-yolo_runs_dir: runs/segment
 
 l_map:
   'cortex': ['CORTEX', 'cortex', 'corex']

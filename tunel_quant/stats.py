@@ -1,12 +1,27 @@
-'''
-All statistics functions are built to accept the output of summarize_analysis,
-which has the following columns:
-        ['name', 'group', 'location', 'mouse', 
-        'definitely alive', 'definitely dead', 'likely alive', 'likely dead']
+"""
+Statistical Analysis Module for TUNEL Assay Data
 
-'''
+This module provides comprehensive statistical analysis functions for TUNEL staining
+experiments, focusing on cell death quantification across experimental groups.
 
-#Import necessary libraries
+The module is designed to work with output from summarize_analysis functions that
+contain the following standard columns:
+    ['name', 'group', 'location', 'mouse', 
+     'definitely alive', 'definitely dead', 'likely alive', 'likely dead']
+
+Key statistical methods included:
+- One-way ANOVA with post-hoc testing for group comparisons
+- Mixed-effects logistic regression for complex experimental designs
+- Power analysis and sample size calculations
+- Multiple testing corrections
+- Hierarchical modeling for nested experimental structures
+
+The module handles the inherent hierarchical structure of microscopy data
+(images nested within mice, mice nested within groups) and provides appropriate
+statistical modeling approaches.
+"""
+
+# Import necessary libraries
 import itertools
 import numpy as np
 import pandas as pd
@@ -17,18 +32,26 @@ from statsmodels.genmod.generalized_estimating_equations import GEE
 from statsmodels.genmod.cov_struct import Exchangeable
 from statsmodels.genmod.families import Binomial
 
-'''ANOVA'''
 
 # ──────────────────────────────────────────────────────────────────
-# 1.  Core ANOVA function
+# ANOVA Analysis Functions
 # ──────────────────────────────────────────────────────────────────
 def anova(df,
           *,
           post_hoc: bool = False,
           include_likely: bool = True):
     """
-    One-way ANOVA comparing mice across treatment groups on the proportion
-    of dead nuclei, with optional Tukey post-hoc tests.
+    One-way ANOVA comparing treatment groups on cell death proportions.
+    
+    This function analyzes differences in cell death rates across experimental groups
+    using mouse-level aggregated data. The analysis accounts for the hierarchical 
+    structure of the data by first aggregating to the mouse level, then comparing
+    groups using classical ANOVA.
+    
+    The function handles both definite classifications and can optionally include
+    likely classifications for more comprehensive analysis. Post-hoc pairwise
+    comparisons using Tukey HSD can be performed when significant group differences
+    are detected.
 
     Parameters
     ----------

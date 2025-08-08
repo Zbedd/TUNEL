@@ -5,3 +5,9 @@ yolo/ #ignore images and model training
 .vscode/
 .env
 .venv
+
+# YOLO training outputs (large, regenerable files)
+runs/
+
+# Claude output files (testing, summaries, documentation)
+claude_output/

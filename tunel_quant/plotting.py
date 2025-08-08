@@ -1,3 +1,21 @@
+"""
+Visualization and Plotting Module for TUNEL Analysis
+
+This module provides comprehensive visualization capabilities for TUNEL assay analysis,
+including raw image display, segmentation overlay, statistical plotting, and 
+interactive data exploration tools.
+
+Key functionality:
+- Display ND2 microscopy images with channel switching
+- Overlay segmentation results with color-coded cell viability status  
+- Generate statistical summary plots and visualizations
+- Interactive widgets for data exploration
+- Export-ready publication figures
+
+The module supports both static matplotlib plots and interactive IPython widgets
+for exploratory data analysis of cell viability measurements.
+"""
+
 import os
 import numpy as np
 import pandas as pd
@@ -12,30 +30,81 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.patches import Patch
 
-#Plots a uint8 image. If colorbar is true, a colorbar is included.
 def plot(image, title=None, xlabel=None, ylabel=None, interpolation='nearest', colorbar=False, figsize=(8, 6)):
+    """
+    Display a uint8 image using matplotlib with optional customization.
+    
+    This is a utility function for quickly visualizing processed images with
+    consistent formatting and optional colorbar display.
+    
+    Parameters
+    ----------
+    image : ndarray
+        Input image data. Must be uint8 format.
+    title : str, optional
+        Title to display above the image.
+    xlabel : str, optional  
+        X-axis label.
+    ylabel : str, optional
+        Y-axis label.
+    interpolation : str, default='nearest'
+        Interpolation method for image display. Common options: 'nearest', 'bilinear'.
+    colorbar : bool, default=False
+        Whether to display intensity colorbar alongside image.
+    figsize : tuple, default=(8, 6)
+        Figure size as (width, height) in inches.
+        
+    Raises
+    ------
+    ValueError
+        If input image is not uint8 data type.
+    """
     if image.dtype != np.uint8:
-      raise ValueError("The provided image is not of type uint8.")
+        raise ValueError("The provided image is not of type uint8.")
+    
     fig, ax = plt.subplots(figsize=figsize)
     im = ax.imshow(image, interpolation=interpolation)
     ax.set_title(title)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
+    
     if colorbar:
-      fig.colorbar(im, ax=ax)
+        fig.colorbar(im, ax=ax)
+    
     plt.tight_layout()
     plt.show()
 
 
-#Visualize_nd2_image and plot_dapi_fitc are two ways to plot raw images
 def visualize_nd2_image(folder_path, file_name, summary_df=None):
     """
-    Visualizes a 2-channel ND2 image (DAPI and FITC) from the given path and file name.
-
-    - Uses nd2reader to load non-TIFF ND2 files
-    - Shows interactive dropdown to toggle between DAPI, FITC, and Merged (colorized)
-    - Falls back to static side-by-side display if widgets are unavailable
-    - Optionally annotates image using matching row in summary DataFrame
+    Interactive visualization of dual-channel ND2 microscopy images.
+    
+    This function provides an interactive interface for viewing DAPI and FITC channels
+    from ND2 files, with optional annotation from analysis results. Users can switch
+    between individual channels and merged false-color displays.
+    
+    Features:
+    - Interactive dropdown for channel selection (DAPI, FITC, Merged)  
+    - False-color merged display (DAPI=blue, FITC=green)
+    - Optional overlay of analysis results from summary DataFrame
+    - Fallback to static display if widgets unavailable
+    
+    Parameters
+    ----------
+    folder_path : str
+        Directory path containing the ND2 file.
+    file_name : str
+        Name of the ND2 file to visualize.
+    summary_df : pandas.DataFrame, optional
+        Analysis results DataFrame for annotation. Should contain columns
+        matching the image filename for result overlay.
+        
+    Notes
+    -----
+    - Requires nd2reader for ND2 file support
+    - Uses IPython widgets for interactivity when available
+    - Handles multi-timepoint and multi-z-stack files by showing first frame
+    - Merged view uses false-color overlay: DAPI (blue) + FITC (green)
     """
 
     full_path = os.path.join(folder_path, file_name)
@@ -130,19 +199,36 @@ def visualize_nd2_image(folder_path, file_name, summary_df=None):
 
 def plot_dapi_fitc(dapi, fitc, mode='side_by_side'):
     """
-    Plots DAPI and FITC images either side by side or overlaid.
-    For side-by-side mode, custom colormaps are used so that 0 maps to black
-    and 255 maps to the full color (blue for DAPI, green for FITC).
-
-    Parameters:
-      dapi (ndarray): Grayscale image for the DAPI channel (values 0-255).
-      fitc (ndarray): Grayscale image for the FITC channel (values 0-255).
-      mode (str): 'side_by_side' or 'overlay'. Defaults to 'side_by_side'.
-
-    Raises:
-      ValueError: If an invalid mode is provided or if image shapes don't match in overlay mode.
+    Display DAPI and FITC images with customizable viewing modes.
+    
+    This function provides flexible visualization of dual-channel fluorescence images
+    using custom colormaps that ensure proper intensity mapping from black (0) to 
+    full color (255). Supports both comparative side-by-side display and merged overlay.
+    
+    Parameters
+    ----------
+    dapi : ndarray
+        DAPI channel image with intensity values 0-255 (grayscale).
+    fitc : ndarray
+        FITC channel image with intensity values 0-255 (grayscale).
+    mode : str, default='side_by_side'
+        Display mode options:
+        - 'side_by_side': Show channels separately with custom colormaps
+        - 'overlay': Merge channels into false-color RGB image
+        
+    Raises
+    ------
+    ValueError
+        If invalid mode is specified or if image shapes don't match for overlay mode.
+        
+    Notes
+    -----
+    - Uses custom linear colormaps: DAPI (black to blue), FITC (black to green)
+    - Overlay mode combines channels: Red=0, Green=FITC, Blue=DAPI
+    - Intensity range 0-255 is preserved with proper normalization
     """
-    # Create custom colormaps:
+    # Create custom colormaps for proper intensity visualization:
+    # Black (intensity 0) to full color (intensity 255)
     blue_cmap = mcolors.LinearSegmentedColormap.from_list(
         'blue_cmap', [(0, 0, 0), (0, 0, 1)], N=256
     )
@@ -156,7 +242,7 @@ def plot_dapi_fitc(dapi, fitc, mode='side_by_side'):
     if mode == 'side_by_side':
         fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
 
-        # Use the custom colormaps. We set vmin=0 and vmax=255 to ensure proper mapping.
+        # Apply custom colormaps with explicit intensity range mapping
         ax1.imshow(dapi, cmap=blue_cmap, vmin=0, vmax=255)
         ax1.set_title("DAPI")
         ax1.axis('off')
@@ -172,13 +258,12 @@ def plot_dapi_fitc(dapi, fitc, mode='side_by_side'):
         if dapi.shape != fitc.shape:
             raise ValueError("For overlay mode, DAPI and FITC images must have the same shape.")
 
-        # Convert images to float and normalize to [0, 1]
+        # Normalize images to [0, 1] range for RGB composition
         dapi_norm = dapi.astype(np.float32) / 255.0
         fitc_norm = fitc.astype(np.float32) / 255.0
 
-        # Create an RGB image with:
-        # - Blue channel: normalized DAPI
-        # - Green channel: normalized FITC
+        # Create false-color RGB overlay:
+        # Red=0 (unused), Green=FITC, Blue=DAPI
         # - Red channel: zeros
         rgb = np.zeros((*dapi.shape, 3), dtype=np.float32)
         rgb[..., 2] = dapi_norm  # Blue channel
